@@ -41,7 +41,9 @@ type Task = {
 };
 ```
 - localStorage key: `task-priority-app:tasks`
-- If stored data is missing or invalid, start with an empty list — never crash.
+- Missing data, unparseable JSON, or a non-array → start with an empty list; storage errors never throw.
+- Otherwise keep only valid tasks: drop items with missing/wrong-typed fields, a bad status, or `done` without `completedAt`; keep the first of duplicate ids; strip unknown fields. Then renumber todo `order` to 0..n-1 (by order, then createdAt).
+- If anything was discarded, first save the raw string to `task-priority-app:tasks:corrupt-backup` (latest overwrites); clean data never writes a backup.
 
 ## MVP1 Scope — IN
 Add task (title only), reorder (drag & drop + ↑↓ buttons), complete / undo complete, delete, Today view, empty state, localStorage persistence.
