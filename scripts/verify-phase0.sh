@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Phase 0 snapshot check — expected to fail P0-33 and P0-36 after Phase 1
 # Verifies the Phase 0 (scaffold) state of Task Priority App against the
 # CLAUDE.md/PRD spec. Read-only against the project: any file it creates
 # (a temp .ts file, a temp log file) is removed via trap before exit.
