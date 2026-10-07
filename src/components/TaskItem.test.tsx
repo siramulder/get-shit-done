@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DndContext } from '@dnd-kit/core'
 import { SortableContext } from '@dnd-kit/sortable'
@@ -97,5 +97,60 @@ describe('TaskItem', () => {
       expect(button(name)).toHaveFocus()
       expect(button(name)).toBeInstanceOf(HTMLButtonElement)
     }
+  })
+})
+
+describe('P2-38 drag listeners live on the drag handle only', () => {
+  // Attributes dnd-kit spreads onto the activator element via `attributes`.
+  const ACTIVATOR_ATTRIBUTES = ['role', 'tabindex', 'aria-disabled', 'aria-roledescription', 'aria-describedby']
+  const PRIMARY_BUTTON = { isPrimary: true, button: 0 }
+  const otherButtons = (title: string) => [
+    labels.moveUp(title),
+    labels.moveDown(title),
+    labels.complete(title),
+    labels.remove(title),
+  ]
+
+  // Default sensors have no activation constraint, so any pointerdown that reaches a listener starts a drag.
+  function renderWithDragSpy() {
+    const onDragStart = vi.fn()
+    const task = makeTask('A')
+    render(
+      <DndContext onDragStart={onDragStart}>
+        <SortableContext items={[task.id]}>
+          <ul>
+            <TaskItem task={task} {...MIDDLE} onMoveUp={vi.fn()} onMoveDown={vi.fn()} onComplete={vi.fn()} onDelete={vi.fn()} />
+          </ul>
+        </SortableContext>
+      </DndContext>,
+    )
+    return { onDragStart, task }
+  }
+
+  it('P2-38 dnd-kit activator attributes are on the drag handle and nowhere else in the row', () => {
+    renderWithDragSpy()
+    const handle = button(labels.dragHandle('A'))
+    for (const name of ACTIVATOR_ATTRIBUTES) expect(handle).toHaveAttribute(name)
+    expect(handle).toHaveAttribute('aria-roledescription', labels.dnd.roleDescription)
+
+    const row = screen.getByRole('listitem')
+    for (const element of [row, ...otherButtons('A').map(button)]) {
+      for (const name of ACTIVATOR_ATTRIBUTES) expect(element).not.toHaveAttribute(name)
+    }
+  })
+
+  it('P2-38 pointerdown starts a drag from the handle only, never from the row or its other buttons', () => {
+    const { onDragStart, task } = renderWithDragSpy()
+
+    for (const name of otherButtons('A')) fireEvent.pointerDown(button(name), PRIMARY_BUTTON)
+    fireEvent.pointerDown(screen.getByText('A'), PRIMARY_BUTTON)
+    fireEvent.pointerDown(screen.getByRole('listitem'), PRIMARY_BUTTON)
+    expect(onDragStart).not.toHaveBeenCalled()
+
+    // Positive control: the same event on the handle does start a drag, so the checks above are meaningful.
+    fireEvent.pointerDown(button(labels.dragHandle('A')), PRIMARY_BUTTON)
+    expect(onDragStart).toHaveBeenCalledTimes(1)
+    expect(onDragStart).toHaveBeenCalledWith(expect.objectContaining({ active: expect.objectContaining({ id: task.id }) }))
+    fireEvent.pointerUp(document, PRIMARY_BUTTON)
   })
 })
