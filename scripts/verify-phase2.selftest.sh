@@ -87,6 +87,8 @@ mutate_g() { append_line src/components/EmptyState.tsx "export const selftestAsk
 mutate_h() { append_line src/components/EmptyState.test.tsx "it.skip('selftest', () => {})"; }
 mutate_i() { replace_text src/components/TaskInput.test.tsx 'P2-05' 'P2-X5'; }
 mutate_j() { printf '/* selftest */\n' > "$COPY/src/App.css"; }
+mutate_k() { append_line src/App.tsx "// Count is {count}"; }
+mutate_l() { replace_text src/components/TaskItem.test.tsx 'P2-38' 'P2-X8'; }
 
 # run_case <letter> <expected-id> <description> <mutation> [<text the evidence must contain>]
 run_case() {
@@ -124,6 +126,8 @@ run_case g "P2-49" "เพิ่ม window.confirm( ใน component"           
 run_case h "X-02"  "เพิ่ม it.skip ในไฟล์เทสต์"                     mutate_h
 run_case i "X-01"  "เปลี่ยนชื่อเทสต์ให้ P2-05 หายไป"                mutate_i "P2-05"
 run_case j "P2-44" "เพิ่มไฟล์ src/App.css"                        mutate_j
+run_case k "P2-44" "เพิ่มข้อความ Count is ใน src/"                 mutate_k "Count is"
+run_case l "X-01"  "เปลี่ยนชื่อเทสต์ให้ P2-38 หายไป"                mutate_l "P2-38"
 
 echo
 echo "== 3. Results =="

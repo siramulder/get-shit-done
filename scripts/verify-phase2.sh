@@ -173,14 +173,14 @@ if [ -d src/assets ]; then
   scan_lines "$TMP_DIR/outside-assets" '[\x27"][^\x27"]*assets/[^\x27"]*[\x27"]' '' >> "$P244"
 fi
 scan_lines "$ALL_SRC" '(\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)[\x27"][^\x27"]*\.svg(\?[^\x27"]*)?[\x27"]' '' >> "$P244"
-grep -rnF 'count is' src >> "$P244"
+grep -rniF 'count is' src >> "$P244"
 grep -qF '<html lang="th">' index.html || echo 'index.html: missing <html lang="th">' >> "$P244"
 grep -qF '<title>Task Priority</title>' index.html || echo 'index.html: missing <title>Task Priority</title>' >> "$P244"
 if [ -s "$P244" ]; then
   fail "P2-44" "Vite boilerplate leftovers or index.html is not as specified"
   evidence < "$P244"
 else
-  pass "P2-44" "no App.css / imported assets / .svg imports / \"count is\"; index.html has lang=\"th\" and the title"
+  pass "P2-44" "no App.css / imported assets / .svg imports / \"count is\" (any case); index.html has lang=\"th\" and the title"
 fi
 
 P245="$(node -e '
@@ -227,7 +227,7 @@ X01="$(node -e '
     const files = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
     const text = files.map((f) => fs.readFileSync(f, "utf8")).join("\n");
     const missing = [];
-    for (let n = 1; n <= 37; n++) {
+    for (let n = 1; n <= 38; n++) {
       const id = `P2-${String(n).padStart(2, "0")}`;
       if (!new RegExp(`${id}(?!\\d)`).test(text)) missing.push(id);
     }
@@ -239,7 +239,7 @@ X01="$(node -e '
   }
 ' "$SPEC_FILES" 2>&1)"
 case $? in
-  0) pass "X-01" "every ID P2-01..P2-37 appears in a *.test.ts(x) file" ;;
+  0) pass "X-01" "every ID P2-01..P2-38 appears in a *.test.ts(x) file" ;;
   1) fail "X-01" "test IDs are missing from *.test.ts(x) files"; printf '%s\n' "$X01" | evidence ;;
   *) fail "X-01" "the check could not run"; printf '%s\n' "$X01" | evidence ;;
 esac
