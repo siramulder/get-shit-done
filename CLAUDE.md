@@ -3,30 +3,37 @@
 ## Project Overview
 A simple web app for manually prioritizing tasks. Users add tasks, reorder them by importance, and mark them done.
 Full requirements and acceptance criteria: `docs/PRD.md` — always check it before implementing a feature.
+Phase status, past decisions, and what comes next: `docs/DEV_PLAN.md` — read it before starting work.
 
 ## Tech Stack
 - React 18 + Vite + TypeScript (strict mode)
-- Tailwind CSS for styling
-- @dnd-kit (core + sortable) for drag & drop
+- Tailwind CSS v4 via `@tailwindcss/vite` (CSS-first, no `tailwind.config`)
+- @dnd-kit (core + sortable + utilities) for drag & drop
 - localStorage for persistence
-- Vitest + React Testing Library for tests
+- Vitest + React Testing Library (+ user-event, jest-dom) for tests; oxlint for lint
 
 ## Commands
 - `npm run dev` — start dev server
 - `npm test` — run tests (use `npm test -- --run` for a single non-watch run)
-- `npm run build` — production build
+- `npx vitest --run --sequence.shuffle` — shuffled run; tests must not depend on order
+- `npm run build` — production build; its `tsc -b` step is what enforces type-level tests
 - `npm run lint` — lint
+- `bash scripts/verify-phase2.sh [--pre-commit]` — Phase 2 verification (report only)
+- `bash scripts/verify-phase2.selftest.sh` — proves the verify script catches planted defects (~4 min)
 
 ## Project Structure
 ```
 src/
-  types/        # Task type and shared types
-  hooks/        # useTasks (state + localStorage)
-  components/   # UI components (TaskInput, TaskList, TaskItem, DoneSection, EmptyState)
-  lib/          # storage helpers
-  App.tsx
+  types/        # Task type
+  hooks/        # useTasks — sole owner of task state and persistence
+  lib/          # storage.ts, date.ts, labels.ts (all UI text)
+  components/   # presentational UI: TaskInput, TaskList, TaskItem, DoneSection, EmptyState, handleDragEnd.ts
+  test/         # setup.ts, smoke test
+  App.tsx       # the only caller of useTasks
+scripts/        # verify-phase0.sh (Phase 0 snapshot, now expected to fail P0-33/P0-36), verify-phase2.sh + self-test
 docs/
   PRD.md
+  DEV_PLAN.md
 ```
 
 ## Data Model
@@ -54,14 +61,24 @@ If a task seems to need any of these, stop and ask instead of implementing.
 
 ## Coding Conventions
 - Functional components and hooks only.
-- Keep all task state logic in `useTasks`; components stay presentational.
+- Keep all task state logic in `useTasks`; only `App.tsx` calls it. Components receive values and handlers via props and must not import `useTasks`, `lib/storage`, `lib/date`, or touch `localStorage`.
+- All UI text lives in `src/lib/labels.ts`; no Thai literals in components or `App.tsx`.
 - No new dependencies without asking first.
 - Accessibility: all buttons have labels; drag & drop must support keyboard; ↑ disabled on first item, ↓ disabled on last.
+- Drag & drop: `listeners`, `attributes`, and `setActivatorNodeRef` go on the drag handle only — never the row or its other buttons. Sensors: PointerSensor `{ distance: 5 }` + KeyboardSensor with `sortableKeyboardCoordinates`.
+- Delete is immediate: no confirm dialog, never `window.confirm`.
 - UI text in Thai unless told otherwise.
+
+## Testing Conventions
+- Put the requirement ID in the test name (e.g. `it('P2-05 clears the box …')`) and colocate `*.test.ts(x)` with the file under test.
+- Query by role + accessible name taken from `labels`.
+- Tests run with `TZ=Asia/Bangkok` (`vite.config.ts` → `test.env`); for date logic use `vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime`.
+- No `.skip` / `.only` / `.todo`. Never weaken a test to make it pass — fix the code or ask.
+- jsdom has no layout: mouse dragging and keyboard reordering cannot be proven by tests. Never claim them as tested; list them for manual browser checks.
 
 ## Workflow
 1. For each phase, propose a plan first (Plan Mode) and wait for approval.
-2. Write tests based on the acceptance criteria in `docs/PRD.md`.
-3. Run `npm test -- --run` and `npm run build` before saying a phase is done.
+2. Write tests first from the acceptance criteria in `docs/PRD.md`, see them fail, then implement.
+3. Before saying a phase is done: `npm test -- --run`, the shuffled run ×3, `npm run build`, `npm run lint`, and the phase's verify script.
 4. Keep changes scoped to the current phase; one phase = one commit.
-5. Summarize what changed and anything not yet meeting the acceptance criteria.
+5. Summarize what changed and anything not yet meeting the acceptance criteria, and update `docs/DEV_PLAN.md`.
