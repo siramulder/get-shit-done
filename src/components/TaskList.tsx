@@ -2,7 +2,6 @@ import {
   closestCenter,
   DndContext,
   KeyboardSensor,
-  PointerSensor,
   useSensor,
   useSensors,
   type Announcements,
@@ -10,6 +9,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { TaskItem } from './TaskItem'
+import { CardPointerSensor } from './cardPointerSensor'
 import { handleDragEnd } from './handleDragEnd'
 import { labels } from '../lib/labels'
 import type { Task } from '../types/task'
@@ -26,7 +26,7 @@ type Props = {
 
 export function TaskList({ tasks, labelledBy, onReorder, ...rowHandlers }: Props) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(CardPointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 

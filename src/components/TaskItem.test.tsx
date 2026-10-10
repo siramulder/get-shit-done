@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { DndContext } from '@dnd-kit/core'
-import { SortableContext } from '@dnd-kit/sortable'
+import { DndContext, KeyboardSensor, useSensor, useSensors, type DragStartEvent } from '@dnd-kit/core'
+import { SortableContext, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { TaskItem } from './TaskItem'
+import { CardPointerSensor } from './cardPointerSensor'
 import { labels } from '../lib/labels'
 import type { Task } from '../types/task'
 
@@ -16,16 +18,31 @@ const makeTask = (title: string): Task => ({
 
 const MIDDLE = { isFirst: false, isLast: false }
 
-function renderItem(task: Task, position = MIDDLE) {
+type OnDragStart = (event: DragStartEvent) => void
+
+// The app's sensors, minus the 5px activation distance, so one pointerdown is enough to start a drag.
+function TestDnd({ children, onDragStart }: { children: ReactNode; onDragStart?: OnDragStart }) {
+  const sensors = useSensors(
+    useSensor(CardPointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  return (
+    <DndContext sensors={sensors} onDragStart={onDragStart}>
+      {children}
+    </DndContext>
+  )
+}
+
+function renderItem(task: Task, position = MIDDLE, onDragStart?: OnDragStart) {
   const handlers = { onMoveUp: vi.fn(), onMoveDown: vi.fn(), onComplete: vi.fn(), onDelete: vi.fn() }
   render(
-    <DndContext>
+    <TestDnd onDragStart={onDragStart}>
       <SortableContext items={[task.id]}>
         <ul>
           <TaskItem task={task} {...position} {...handlers} />
         </ul>
       </SortableContext>
-    </DndContext>,
+    </TestDnd>,
   )
   return handlers
 }
@@ -100,57 +117,85 @@ describe('TaskItem', () => {
   })
 })
 
-describe('P2-38 drag listeners live on the drag handle only', () => {
+describe('P2-50 a card drags from anywhere except its buttons', () => {
   // Attributes dnd-kit spreads onto the activator element via `attributes`.
   const ACTIVATOR_ATTRIBUTES = ['role', 'tabindex', 'aria-disabled', 'aria-roledescription', 'aria-describedby']
   const PRIMARY_BUTTON = { isPrimary: true, button: 0 }
-  const otherButtons = (title: string) => [
+  const rowButtons = (title: string) => [
     labels.moveUp(title),
     labels.moveDown(title),
     labels.complete(title),
     labels.remove(title),
   ]
+  const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
 
-  // Default sensors have no activation constraint, so any pointerdown that reaches a listener starts a drag.
-  function renderWithDragSpy() {
+  function setup() {
     const onDragStart = vi.fn()
     const task = makeTask('A')
-    render(
-      <DndContext onDragStart={onDragStart}>
-        <SortableContext items={[task.id]}>
-          <ul>
-            <TaskItem task={task} {...MIDDLE} onMoveUp={vi.fn()} onMoveDown={vi.fn()} onComplete={vi.fn()} onDelete={vi.fn()} />
-          </ul>
-        </SortableContext>
-      </DndContext>,
-    )
+    renderItem(task, MIDDLE, onDragStart)
     return { onDragStart, task }
   }
 
-  it('P2-38 dnd-kit activator attributes are on the drag handle and nowhere else in the row', () => {
-    renderWithDragSpy()
+  // dnd-kit keeps a click-swallowing listener on the document for 50ms after a pointer drag;
+  // wait it out so it cannot eat clicks in the next test.
+  async function endPointerDrag() {
+    fireEvent.pointerUp(document, PRIMARY_BUTTON)
+    await tick(60)
+  }
+
+  it('P2-50 keyboard / screen-reader activator attributes stay on the ⠿ handle only', () => {
+    setup()
     const handle = button(labels.dragHandle('A'))
     for (const name of ACTIVATOR_ATTRIBUTES) expect(handle).toHaveAttribute(name)
     expect(handle).toHaveAttribute('aria-roledescription', labels.dnd.roleDescription)
 
     const row = screen.getByRole('listitem')
-    for (const element of [row, ...otherButtons('A').map(button)]) {
+    for (const element of [row, ...rowButtons('A').map(button)]) {
       for (const name of ACTIVATOR_ATTRIBUTES) expect(element).not.toHaveAttribute(name)
     }
   })
 
-  it('P2-38 pointerdown starts a drag from the handle only, never from the row or its other buttons', () => {
-    const { onDragStart, task } = renderWithDragSpy()
-
-    for (const name of otherButtons('A')) fireEvent.pointerDown(button(name), PRIMARY_BUTTON)
-    fireEvent.pointerDown(screen.getByText('A'), PRIMARY_BUTTON)
-    fireEvent.pointerDown(screen.getByRole('listitem'), PRIMARY_BUTTON)
-    expect(onDragStart).not.toHaveBeenCalled()
-
-    // Positive control: the same event on the handle does start a drag, so the checks above are meaningful.
-    fireEvent.pointerDown(button(labels.dragHandle('A')), PRIMARY_BUTTON)
+  it.each([
+    ['the title', () => screen.getByText('A')],
+    ['the card itself', () => screen.getByRole('listitem')],
+    ['the ⠿ handle', () => button(labels.dragHandle('A'))],
+  ])('P2-50 pointerdown on %s starts a drag', async (_label, target) => {
+    const { onDragStart, task } = setup()
+    fireEvent.pointerDown(target(), PRIMARY_BUTTON)
     expect(onDragStart).toHaveBeenCalledTimes(1)
     expect(onDragStart).toHaveBeenCalledWith(expect.objectContaining({ active: expect.objectContaining({ id: task.id }) }))
-    fireEvent.pointerUp(document, PRIMARY_BUTTON)
+    await endPointerDrag()
+  })
+
+  it('P2-50 pointerdown on ↑ ↓ ✓ ✕ never starts a drag', async () => {
+    const { onDragStart } = setup()
+    for (const name of rowButtons('A')) fireEvent.pointerDown(button(name), PRIMARY_BUTTON)
+    expect(onDragStart).not.toHaveBeenCalled()
+
+    // Positive control: the same event on the title does start a drag, so the check above is meaningful.
+    fireEvent.pointerDown(screen.getByText('A'), PRIMARY_BUTTON)
+    expect(onDragStart).toHaveBeenCalledTimes(1)
+    await endPointerDrag()
+  })
+
+  it('P2-50 Space starts a keyboard drag only from the ⠿ handle', async () => {
+    // jsdom has no scrollIntoView, which dnd-kit calls when a keyboard drag starts.
+    const original = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
+    Element.prototype.scrollIntoView = vi.fn()
+    try {
+      const { onDragStart } = setup()
+      for (const name of rowButtons('A')) fireEvent.keyDown(button(name), { code: 'Space' })
+      expect(onDragStart).not.toHaveBeenCalled()
+
+      fireEvent.keyDown(button(labels.dragHandle('A')), { code: 'Space' })
+      expect(onDragStart).toHaveBeenCalledTimes(1)
+
+      // The keyboard sensor starts listening for keys one tick after it starts; then cancel the drag.
+      await tick()
+      fireEvent.keyDown(document, { code: 'Escape' })
+    } finally {
+      if (original) Object.defineProperty(Element.prototype, 'scrollIntoView', original)
+      else delete (Element.prototype as Partial<Element>).scrollIntoView
+    }
   })
 })

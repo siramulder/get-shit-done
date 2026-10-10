@@ -27,7 +27,8 @@ src/
   types/        # Task type
   hooks/        # useTasks — sole owner of task state and persistence
   lib/          # storage.ts, date.ts, labels.ts (all UI text)
-  components/   # presentational UI: TaskInput, TaskList, TaskItem, DoneSection, EmptyState, handleDragEnd.ts
+  components/   # presentational UI: TaskInput, TaskList, TaskItem, DoneSection, EmptyState,
+                #   plus handleDragEnd.ts and cardPointerSensor.ts
   test/         # setup.ts, smoke test
   App.tsx       # the only caller of useTasks
 scripts/        # verify-phase0.sh (Phase 0 snapshot, now expected to fail P0-33/P0-36), verify-phase2.sh + self-test
@@ -65,7 +66,7 @@ If a task seems to need any of these, stop and ask instead of implementing.
 - All UI text lives in `src/lib/labels.ts`; no Thai literals in components or `App.tsx`.
 - No new dependencies without asking first.
 - Accessibility: all buttons have labels; drag & drop must support keyboard; ↑ disabled on first item, ↓ disabled on last.
-- Drag & drop: `listeners`, `attributes`, and `setActivatorNodeRef` go on the drag handle only — never the row or its other buttons. Sensors: PointerSensor `{ distance: 5 }` + KeyboardSensor with `sortableKeyboardCoordinates`.
+- Drag & drop: a mouse drag can start anywhere on a card — `listeners` go on the `<li>`, and `CardPointerSensor` refuses to start from the card's buttons (↑ ↓ ✓ ✕). `attributes` and `setActivatorNodeRef` stay on the ⠿ handle, so keyboard dragging and screen-reader semantics live there. Sensors: `CardPointerSensor { distance: 5 }` + KeyboardSensor with `sortableKeyboardCoordinates`. Touch/mobile dragging is not supported.
 - Delete is immediate: no confirm dialog, never `window.confirm`.
 - UI text in Thai unless told otherwise.
 
@@ -75,6 +76,7 @@ If a task seems to need any of these, stop and ask instead of implementing.
 - Tests run with `TZ=Asia/Bangkok` (`vite.config.ts` → `test.env`); for date logic use `vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime`.
 - No `.skip` / `.only` / `.todo`. Never weaken a test to make it pass — fix the code or ask.
 - jsdom has no layout: mouse dragging and keyboard reordering cannot be proven by tests. Never claim them as tested; list them for manual browser checks.
+- A test that starts a pointer drag must end it and then wait ~60ms: dnd-kit keeps a click-swallowing listener on `document` for 50ms, which can eat clicks in the next test.
 
 ## Workflow
 1. For each phase, propose a plan first (Plan Mode) and wait for approval.

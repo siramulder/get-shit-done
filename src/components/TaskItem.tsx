@@ -15,25 +15,27 @@ type Props = {
 
 const iconButton =
   'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-lg text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent dark:text-gray-200 dark:hover:bg-gray-800'
+const controlButton = `${iconButton} cursor-pointer`
 
 export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComplete, onDelete }: Props) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id, attributes: { roleDescription: labels.dnd.roleDescription } })
 
   return (
+    // Pointer drags start anywhere on the card (CardPointerSensor skips its buttons); the activator ref and
+    // attributes stay on the handle so keyboard dragging and screen-reader semantics live there.
     <li
       ref={setNodeRef}
+      {...listeners}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900 ${
+      className={`flex cursor-grab items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 active:cursor-grabbing dark:border-gray-800 dark:bg-gray-900 ${
         isDragging ? 'relative z-10 shadow-lg' : ''
       }`}
     >
-      {/* Only the handle gets the sensor listeners, so the other buttons in the row can never start a drag. */}
       <button
         type="button"
         ref={setActivatorNodeRef}
         {...attributes}
-        {...listeners}
         aria-label={labels.dragHandle(task.title)}
         className={`${iconButton} cursor-grab touch-none text-gray-400 active:cursor-grabbing`}
       >
@@ -45,7 +47,7 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
         onClick={() => onMoveUp(task.id)}
         disabled={isFirst}
         aria-label={labels.moveUp(task.title)}
-        className={iconButton}
+        className={controlButton}
       >
         <span aria-hidden="true">↑</span>
       </button>
@@ -54,7 +56,7 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
         onClick={() => onMoveDown(task.id)}
         disabled={isLast}
         aria-label={labels.moveDown(task.title)}
-        className={iconButton}
+        className={controlButton}
       >
         <span aria-hidden="true">↓</span>
       </button>
@@ -62,7 +64,7 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
         type="button"
         onClick={() => onComplete(task.id)}
         aria-label={labels.complete(task.title)}
-        className={`${iconButton} text-green-700 dark:text-green-400`}
+        className={`${controlButton} text-green-700 dark:text-green-400`}
       >
         <span aria-hidden="true">✓</span>
       </button>
@@ -70,7 +72,7 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
         type="button"
         onClick={() => onDelete(task.id)}
         aria-label={labels.remove(task.title)}
-        className={`${iconButton} text-red-600 dark:text-red-400`}
+        className={`${controlButton} text-red-600 dark:text-red-400`}
       >
         <span aria-hidden="true">✕</span>
       </button>
