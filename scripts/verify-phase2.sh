@@ -225,22 +225,32 @@ X01="$(node -e '
   const fs = require("fs");
   try {
     const files = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
-    const text = files.map((f) => fs.readFileSync(f, "utf8")).join("\n");
-    const missing = [];
-    for (let n = 1; n <= 38; n++) {
-      const id = `P2-${String(n).padStart(2, "0")}`;
-      if (!new RegExp(`${id}(?!\\d)`).test(text)) missing.push(id);
+    const contents = files.map((f) => [f, fs.readFileSync(f, "utf8")]);
+    const uses = (id, text) => new RegExp(`${id}(?!\\d)`).test(text);
+    const required = [];
+    for (let n = 1; n <= 37; n++) required.push(`P2-${String(n).padStart(2, "0")}`);
+    required.push("P2-50");
+    const retired = ["P2-38"];
+    const allText = contents.map(([, text]) => text).join("\n");
+    const missing = required.filter((id) => !uses(id, allText));
+    if (missing.length) console.log(`missing: ${missing.join(", ")}`);
+    let retiredFound = 0;
+    for (const [file, text] of contents) {
+      text.split("\n").forEach((line, i) => {
+        for (const id of retired) {
+          if (uses(id, line)) { console.log(`${file}:${i + 1}: retired ${id} still used: ${line.trim()}`); retiredFound++; }
+        }
+      });
     }
-    if (missing.length) { console.log(`missing: ${missing.join(", ")}`); process.exit(1); }
-    process.exit(0);
+    process.exit(missing.length || retiredFound ? 1 : 0);
   } catch (error) {
     console.log(String(error));
     process.exit(2);
   }
 ' "$SPEC_FILES" 2>&1)"
 case $? in
-  0) pass "X-01" "every ID P2-01..P2-38 appears in a *.test.ts(x) file" ;;
-  1) fail "X-01" "test IDs are missing from *.test.ts(x) files"; printf '%s\n' "$X01" | evidence ;;
+  0) pass "X-01" "every required ID (P2-01..P2-37, P2-50) appears in a *.test.ts(x) file; retired P2-38 is gone" ;;
+  1) fail "X-01" "a required test ID is missing, or the retired P2-38 is still used"; printf '%s\n' "$X01" | evidence ;;
   *) fail "X-01" "the check could not run"; printf '%s\n' "$X01" | evidence ;;
 esac
 
