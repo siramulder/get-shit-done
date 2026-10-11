@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { focusNeighborControl } from './focusNeighbor'
 import { labels } from '../lib/labels'
 import type { Task } from '../types/task'
 
@@ -6,12 +7,13 @@ type Props = {
   tasks: Task[]
   onUncomplete: (id: string) => void
   onDelete: (id: string) => void
+  focusFallback: () => void
 }
 
 const iconButton =
   'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-lg text-gray-600 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-gray-300 dark:hover:bg-gray-800'
 
-export function DoneSection({ tasks, onUncomplete, onDelete }: Props) {
+export function DoneSection({ tasks, onUncomplete, onDelete, focusFallback }: Props) {
   const headingId = useId()
   if (tasks.length === 0) return null
 
@@ -31,7 +33,11 @@ export function DoneSection({ tasks, onUncomplete, onDelete }: Props) {
             </span>
             <button
               type="button"
-              onClick={() => onUncomplete(task.id)}
+              data-action="uncomplete"
+              onClick={(event) => {
+                focusNeighborControl(event.currentTarget, focusFallback)
+                onUncomplete(task.id)
+              }}
               aria-label={labels.uncomplete(task.title)}
               className={iconButton}
             >
@@ -39,7 +45,11 @@ export function DoneSection({ tasks, onUncomplete, onDelete }: Props) {
             </button>
             <button
               type="button"
-              onClick={() => onDelete(task.id)}
+              data-action="remove"
+              onClick={(event) => {
+                focusNeighborControl(event.currentTarget, focusFallback)
+                onDelete(task.id)
+              }}
               aria-label={labels.remove(task.title)}
               className={`${iconButton} text-red-600 dark:text-red-400`}
             >

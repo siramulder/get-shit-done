@@ -34,7 +34,7 @@ function TestDnd({ children, onDragStart }: { children: ReactNode; onDragStart?:
 }
 
 function renderItem(task: Task, position = MIDDLE, onDragStart?: OnDragStart) {
-  const handlers = { onMoveUp: vi.fn(), onMoveDown: vi.fn(), onComplete: vi.fn(), onDelete: vi.fn() }
+  const handlers = { onMoveUp: vi.fn(), onMoveDown: vi.fn(), onComplete: vi.fn(), onDelete: vi.fn(), focusFallback: vi.fn() }
   render(
     <TestDnd onDragStart={onDragStart}>
       <SortableContext items={[task.id]}>

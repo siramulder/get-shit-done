@@ -1,11 +1,12 @@
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { labels } from '../lib/labels'
 
-type Props = { onAdd: (title: string) => void }
+type Props = { onAdd: (title: string) => void; inputRef?: RefObject<HTMLInputElement> }
 
-export function TaskInput({ onAdd }: Props) {
+export function TaskInput({ onAdd, inputRef: externalRef }: Props) {
   const [text, setText] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const ownRef = useRef<HTMLInputElement>(null)
+  const inputRef = externalRef ?? ownRef
   const inputId = useId()
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

@@ -1,5 +1,4 @@
 import {
-  closestCenter,
   DndContext,
   KeyboardSensor,
   useSensor,
@@ -11,6 +10,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { TaskItem } from './TaskItem'
 import { CardPointerSensor } from './cardPointerSensor'
 import { handleDragEnd } from './handleDragEnd'
+import { listCollisionDetection } from './listCollisionDetection'
 import { labels } from '../lib/labels'
 import type { Task } from '../types/task'
 
@@ -22,6 +22,7 @@ type Props = {
   onComplete: (id: string) => void
   onDelete: (id: string) => void
   onReorder: (activeId: string, overId: string) => void
+  focusFallback: () => void
 }
 
 export function TaskList({ tasks, labelledBy, onReorder, ...rowHandlers }: Props) {
@@ -47,7 +48,7 @@ export function TaskList({ tasks, labelledBy, onReorder, ...rowHandlers }: Props
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={listCollisionDetection}
       onDragEnd={(event) => handleDragEnd(event, onReorder)}
       accessibility={{ screenReaderInstructions: { draggable: labels.dnd.instructions }, announcements }}
     >

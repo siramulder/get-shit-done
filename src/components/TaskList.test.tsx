@@ -18,6 +18,7 @@ function renderList() {
     onComplete: vi.fn(),
     onDelete: vi.fn(),
     onReorder: vi.fn(),
+    focusFallback: vi.fn(),
   }
   render(
     <>

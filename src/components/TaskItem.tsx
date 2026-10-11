@@ -1,5 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { focusNeighborControl } from './focusNeighbor'
 import { labels } from '../lib/labels'
 import type { Task } from '../types/task'
 
@@ -11,13 +12,14 @@ type Props = {
   onMoveDown: (id: string) => void
   onComplete: (id: string) => void
   onDelete: (id: string) => void
+  focusFallback: () => void
 }
 
 const iconButton =
   'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-lg text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent dark:text-gray-200 dark:hover:bg-gray-800'
 const controlButton = `${iconButton} cursor-pointer`
 
-export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComplete, onDelete }: Props) {
+export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComplete, onDelete, focusFallback }: Props) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id, attributes: { roleDescription: labels.dnd.roleDescription } })
 
@@ -62,7 +64,11 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
       </button>
       <button
         type="button"
-        onClick={() => onComplete(task.id)}
+        data-action="complete"
+        onClick={(event) => {
+          focusNeighborControl(event.currentTarget, focusFallback)
+          onComplete(task.id)
+        }}
         aria-label={labels.complete(task.title)}
         className={`${controlButton} text-green-700 dark:text-green-400`}
       >
@@ -70,7 +76,11 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
       </button>
       <button
         type="button"
-        onClick={() => onDelete(task.id)}
+        data-action="remove"
+        onClick={(event) => {
+          focusNeighborControl(event.currentTarget, focusFallback)
+          onDelete(task.id)
+        }}
         aria-label={labels.remove(task.title)}
         className={`${controlButton} text-red-600 dark:text-red-400`}
       >

@@ -15,12 +15,12 @@ const done: Task = {
 
 describe('DoneSection', () => {
   it('renders nothing when no task was finished today', () => {
-    const { container } = render(<DoneSection tasks={[]} onUncomplete={vi.fn()} onDelete={vi.fn()} />)
+    const { container } = render(<DoneSection tasks={[]} onUncomplete={vi.fn()} onDelete={vi.fn()} focusFallback={vi.fn()} />)
     expect(container).toBeEmptyDOMElement()
   })
 
   it('lists finished tasks under "เสร็จวันนี้" with only undo and delete buttons', () => {
-    render(<DoneSection tasks={[done]} onUncomplete={vi.fn()} onDelete={vi.fn()} />)
+    render(<DoneSection tasks={[done]} onUncomplete={vi.fn()} onDelete={vi.fn()} focusFallback={vi.fn()} />)
     expect(screen.getByRole('heading', { name: labels.doneHeading })).toBeInTheDocument()
     expect(screen.getByText(done.title)).toBeInTheDocument()
     expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
@@ -33,7 +33,7 @@ describe('DoneSection', () => {
     const user = userEvent.setup()
     const onUncomplete = vi.fn()
     const onDelete = vi.fn()
-    render(<DoneSection tasks={[done]} onUncomplete={onUncomplete} onDelete={onDelete} />)
+    render(<DoneSection tasks={[done]} onUncomplete={onUncomplete} onDelete={onDelete} focusFallback={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: labels.uncomplete(done.title) }))
     await user.click(screen.getByRole('button', { name: labels.remove(done.title) }))
     expect(onUncomplete).toHaveBeenCalledExactlyOnceWith('done-1')

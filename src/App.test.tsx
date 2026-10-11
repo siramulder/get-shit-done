@@ -284,3 +284,56 @@ describe('robustness', () => {
     expect(todoTitles().at(-1)).toBe('งานใหม่')
   })
 })
+
+describe('P3 focus after a row leaves its list', () => {
+  const addTaskBox = () => screen.getByRole('textbox', { name: labels.inputLabel })
+
+  // [case, tasks, clicked, expected focus owner (null = the add-task box)]
+  const cases: Array<[string, string[], string, string | null]> = [
+    ['the same button in the next row', ['A', 'B', 'C'], 'B', 'C'],
+    ['the previous row when the last row is used', ['A', 'B', 'C'], 'C', 'B'],
+    ['the add-task box when no row is left', ['A'], 'A', null],
+  ]
+
+  it.each(cases)('P3-01 ✓ in the todo list moves focus to %s', async (_case, tasks, clicked, expected) => {
+    const { user } = setup()
+    await addTasks(user, ...tasks)
+    await user.click(button(labels.complete(clicked)))
+    expect(expected === null ? addTaskBox() : button(labels.complete(expected))).toHaveFocus()
+  })
+
+  it.each(cases)('P3-02 ✕ in the todo list moves focus to %s', async (_case, tasks, clicked, expected) => {
+    const { user } = setup()
+    await addTasks(user, ...tasks)
+    await user.click(button(labels.remove(clicked)))
+    expect(expected === null ? addTaskBox() : button(labels.remove(expected))).toHaveFocus()
+  })
+
+  // Done rows are listed newest first, so completing A, B, C in order shows C, B, A.
+  const doneCases: Array<[string, string[], string, string | null]> = [
+    ['the same button in the next row', ['A', 'B', 'C'], 'B', 'A'],
+    ['the previous row when the last row is used', ['A', 'B', 'C'], 'A', 'B'],
+    ['the add-task box when no row is left', ['A'], 'A', null],
+  ]
+
+  async function completeAll(user: UserEvent, tasks: string[]) {
+    await addTasks(user, ...tasks)
+    for (const title of tasks) await user.click(button(labels.complete(title)))
+  }
+
+  it.each(doneCases)('P3-03 ↩ in "เสร็จวันนี้" moves focus to %s', async (_case, tasks, clicked, expected) => {
+    const { user } = setup()
+    await completeAll(user, tasks)
+    await user.click(within(doneList()).getByRole('button', { name: labels.uncomplete(clicked) }))
+    expect(expected === null ? addTaskBox() : button(labels.uncomplete(expected))).toHaveFocus()
+  })
+
+  it.each(doneCases)('P3-04 ✕ in "เสร็จวันนี้" moves focus to %s', async (_case, tasks, clicked, expected) => {
+    const { user } = setup()
+    await completeAll(user, tasks)
+    await user.click(within(doneList()).getByRole('button', { name: labels.remove(clicked) }))
+    expect(
+      expected === null ? addTaskBox() : within(doneList()).getByRole('button', { name: labels.remove(expected) }),
+    ).toHaveFocus()
+  })
+})
