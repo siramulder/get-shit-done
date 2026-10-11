@@ -28,13 +28,14 @@ src/
   hooks/        # useTasks — sole owner of task state and persistence
   lib/          # storage.ts, date.ts, labels.ts (all UI text)
   components/   # presentational UI: TaskInput, TaskList, TaskItem, DoneSection, EmptyState,
-                #   plus handleDragEnd.ts and cardPointerSensor.ts
+                #   plus handleDragEnd.ts, cardPointerSensor.ts, listCollisionDetection.ts, focusNeighbor.ts
   test/         # setup.ts, smoke test
   App.tsx       # the only caller of useTasks
 scripts/        # verify-phase0.sh (Phase 0 snapshot, now expected to fail P0-33/P0-36), verify-phase2.sh + self-test
 docs/
   PRD.md
   DEV_PLAN.md
+  MANUAL_QA.md
 ```
 
 ## Data Model

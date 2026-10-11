@@ -1,32 +1,45 @@
-# React + TypeScript + Vite
+# Task Priority App (MVP1)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+เว็บแอปหน้าเดียวสำหรับจัดลำดับงานด้วยมือ:
+- เพิ่มงานด้วยชื่อ
+- เรียงลำดับด้วยการลากการ์ด หรือปุ่ม ↑ ↓ (ลากด้วยคีย์บอร์ดได้)
+- ทำเสร็จ, ย้อนกลับ, ลบ
+- ส่วน "เสร็จวันนี้"
 
-Currently, two official plugins are available:
+ข้อมูลเก็บใน `localStorage` ของเบราว์เซอร์ ไม่มี backend และไม่มีบัญชีผู้ใช้
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## วิธีรัน
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm run build      # ไฟล์ static อยู่ใน dist/
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## วิธีเทสต์
+```bash
+npm test -- --run                       # Vitest + React Testing Library (jsdom)
+npx vitest --run --sequence.shuffle     # สลับลำดับเทสต์ ต้องผ่านเหมือนกัน
+npm run lint
+bash scripts/verify-phase2.sh           # ตรวจ scope, build, test และ dev server (อ่านอย่างเดียว)
+```
+เทสต์รันใน timezone `Asia/Bangkok` ซึ่งตั้งไว้ใน `vite.config.ts`
+
+การลากวางในเบราว์เซอร์จริงต้องตรวจด้วยมือตาม [docs/MANUAL_QA.md](docs/MANUAL_QA.md) เพราะ jsdom ไม่มี layout
+
+## โครงสร้าง
+```
+src/
+  App.tsx        # ที่เดียวที่เรียก useTasks แล้วส่งค่าลงไปให้ component
+  hooks/         # useTasks: state ของงานทั้งหมด + บันทึกอัตโนมัติ
+  lib/           # storage.ts, date.ts, labels.ts (ข้อความ UI ทั้งหมด)
+  components/    # UI ล้วน + ตัวช่วยลากวาง/focus
+  types/         # Task
+scripts/         # สคริปต์ตรวจแต่ละ phase
+docs/            # PRD, dev plan, manual QA
+```
+
+## เอกสาร
+- [docs/PRD.md](docs/PRD.md) — ความต้องการและขอบเขต MVP1
+- [docs/DEV_PLAN.md](docs/DEV_PLAN.md) — สถานะแต่ละ phase, การตัดสินใจทั้งหมด, สิ่งที่ค้าง และขั้นถัดไป
+- [docs/MANUAL_QA.md](docs/MANUAL_QA.md) — รายการตรวจในเบราว์เซอร์ M-01 ถึง M-14
+- [CLAUDE.md](CLAUDE.md) — กติกาโค้ดและ workflow สำหรับคนหรือ AI ที่จะพัฒนาต่อ
