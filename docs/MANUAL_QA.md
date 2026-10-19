@@ -1,4 +1,4 @@
-# Manual QA — Task Priority App (MVP1)
+# Manual QA — Task Priority App (MVP1 + v2)
 
 ตรวจในเบราว์เซอร์จริงด้วย `npm run dev` เริ่มจาก localStorage ว่าง และเปิด Console ไว้ตลอด
 
@@ -8,6 +8,7 @@
 - **รอ PO** = Claude ทำไม่ได้
 
 ผลของ Claude ตรวจเมื่อ 2026-10-11 ที่ commit `4d41fd5` (ก่อนแก้) และ `811583e` (หลังแก้ M-11 กับ focus) ภาพหน้าจอของแต่ละข้อส่งให้ PO แยกไว้แล้ว
+M-15 และ M-16 (v2 slice 0) ตรวจเมื่อ 2026-10-19 ที่โค้ดของ commit `feat(v2): schema v2 store with MVP1 migration and dueDate validation` บน dev server ใน browser pane
 
 **ทุกครั้งที่แก้ส่วนลากวาง** (`TaskItem`, `TaskList`, `cardPointerSensor`, `listCollisionDetection`, `handleDragEnd`) ต้องตรวจ M-01, M-02, M-03, M-11 ใหม่
 
@@ -27,3 +28,5 @@
 | M-12 | ลบงานจนหมด / ทำเสร็จทุกงาน | empty แบบที่ 1 / empty แบบที่ 2 | browser pane | ✅ ทั้งสองแบบ | |
 | M-13 | ใส่งาน done ที่ `completedAt` เป็นเมื่อวานผ่าน DevTools แล้ว reload | ไม่แสดง แต่ข้อมูลยังอยู่ | จำลอง (ใส่ผ่าน JS) + browser pane | ✅ ไม่แสดง และยังอยู่ใน localStorage แม้หลังมีการบันทึก | |
 | M-14 | สลับ `prefers-color-scheme` เป็น light และ dark | ข้อความทุกส่วน ปุ่ม disabled และ focus ring อ่านออก/มองเห็นได้ทั้งสองโหมด | browser pane + วัด contrast ตาม WCAG | ✅ ทุกจุดผ่าน (focus ring light 5.25:1 / dark 3.38:1) **ยกเว้น** placeholder ใน light 2.6:1 ซึ่ง PO ตัดสินให้จดไว้ / ปุ่ม disabled light 1.71:1 มองเห็นได้ | |
+| M-15 | ใส่ `{ "schemaVersion": 3, "tasks": [...] }` (pretty-print) ที่ key `task-priority-app:tasks` ผ่าน DevTools แล้ว reload จากนั้นพิมพ์ในช่อง กด Enter และคลิกปุ่มเพิ่มงาน ทำทั้ง light และ dark | เห็นข้อความจาก labels ว่าข้อมูลมาจากเวอร์ชันใหม่กว่า ไม่มี empty state ไม่มีลิสต์ ช่องเพิ่มงานและปุ่ม disabled อ่านออกทั้งสองโหมด และ localStorage ไม่เปลี่ยนแม้แต่ตัวอักษรเดียว | จำลอง (ใส่ผ่าน JS) + browser pane + วัด contrast ตาม WCAG | ✅ ข้อความ (`role="status"`) dark 13.47:1 / light 8.73:1 · ช่องและปุ่ม disabled ทั้งสองโหมด ไม่มี empty state ไม่มี `<ul>` · พิมพ์ "test"+Enter และคลิกปุ่ม → ช่องยังว่าง raw ยังเป็น v3 ทุกตัวอักษร ไม่มี key backup · placeholder ของช่องที่ disabled (opacity 0.6): dark 3.13:1 / light 1.71:1 และปุ่ม disabled light 2.63:1 — มองเห็นแต่จาง (WCAG ยกเว้น control ที่ disabled) | |
+| M-16 | ใส่ localStorage ของ MVP1 จริง (payload เดียวกับเทสต์ AC-16.1: 3 todo ที่ order 0/2/3 + 1 done วันนี้) แล้ว reload → กด ↓ ที่งานแรก 1 ครั้ง → reload | โหลดแล้วงานครบ ลำดับเดิม raw ยังเป็น array ไม่มี backup · หลังกด localStorage เป็น Store v2 ครบ 4 งาน งาน done ยังมี completedAt เดิม · reload แล้วยังครบตามลำดับใหม่ | จำลอง (ใส่ผ่าน JS) + browser pane | ✅ โหลด: todo ซื้อนม → โทรหาลูกค้า "บริษัท A" → จองตั๋ว 🚀 / เสร็จวันนี้ ส่งรายงานประจำสัปดาห์ · raw ยังเป็น array (591 ตัวอักษร) backup = null · กด ↓ → `{ schemaVersion: 2, tasks: [4 งาน] }` done มี completedAt เดิม · reload → โทรหาลูกค้า → ซื้อนม → จองตั๋ว + เสร็จวันนี้ครบ | |

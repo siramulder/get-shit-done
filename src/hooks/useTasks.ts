@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { arrayMove } from '@dnd-kit/sortable'
 import type { Task } from '../types/task'
-import { loadTasks, saveTasks } from '../lib/storage'
+import { loadStore, saveTasks } from '../lib/storage'
 import { isToday } from '../lib/date'
 
 function sortedTodo(tasks: Task[]): Task[] {
@@ -21,14 +21,23 @@ function withTodoOrder(tasks: Task[], orderedTodo: Task[]): Task[] {
 }
 
 export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>(loadTasks)
+  const [loaded] = useState(loadStore)
+  // localStorage holds data from a newer app version: show an empty list, change nothing, write nothing.
+  const newerVersion = loaded.status === 'newer-version'
+  const [tasks, setTasks] = useState<Task[]>(() => (loaded.status === 'ok' ? loaded.tasks : []))
   const initialTasks = useRef(tasks)
 
   useEffect(() => {
     // Skip the mount so a failed or partial read is never written back before the user changes anything.
-    if (tasks === initialTasks.current) return
+    if (newerVersion || tasks === initialTasks.current) return
     saveTasks(tasks)
-  }, [tasks])
+  }, [newerVersion, tasks])
+
+  // Every mutation goes through here, so the newer-version guard cannot be forgotten by a new action.
+  function update(change: (prev: Task[]) => Task[]) {
+    if (newerVersion) return
+    setTasks(change)
+  }
 
   const todoTasks = sortedTodo(tasks)
   const doneTodayTasks = tasks
@@ -40,7 +49,7 @@ export function useTasks() {
     if (trimmed === '') return
     const id = crypto.randomUUID()
     const createdAt = new Date().toISOString()
-    setTasks((prev) => [
+    update((prev) => [
       ...prev,
       { id, title: trimmed, order: nextOrder(prev), status: 'todo', createdAt },
     ])
@@ -48,7 +57,7 @@ export function useTasks() {
 
   function completeTask(id: string) {
     const completedAt = new Date().toISOString()
-    setTasks((prev) =>
+    update((prev) =>
       prev.map((t): Task =>
         t.id === id && t.status === 'todo' ? { ...t, status: 'done', completedAt } : t,
       ),
@@ -56,7 +65,7 @@ export function useTasks() {
   }
 
   function uncompleteTask(id: string) {
-    setTasks((prev) => {
+    update((prev) => {
       const order = nextOrder(prev)
       return prev.map((t): Task =>
         t.id === id && t.status === 'done'
@@ -67,11 +76,11 @@ export function useTasks() {
   }
 
   function deleteTask(id: string) {
-    setTasks((prev) => prev.filter((t) => t.id !== id))
+    update((prev) => prev.filter((t) => t.id !== id))
   }
 
   function moveTask(id: string, direction: 'up' | 'down') {
-    setTasks((prev) => {
+    update((prev) => {
       const todo = sortedTodo(prev)
       const from = todo.findIndex((t) => t.id === id)
       const to = direction === 'up' ? from - 1 : from + 1
@@ -81,7 +90,7 @@ export function useTasks() {
   }
 
   function reorderTasks(activeId: string, overId: string) {
-    setTasks((prev) => {
+    update((prev) => {
       const todo = sortedTodo(prev)
       const from = todo.findIndex((t) => t.id === activeId)
       const to = todo.findIndex((t) => t.id === overId)
@@ -93,6 +102,7 @@ export function useTasks() {
   return {
     todoTasks,
     doneTodayTasks,
+    newerVersion,
     addTask,
     completeTask,
     uncompleteTask,

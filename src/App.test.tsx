@@ -337,3 +337,65 @@ describe('P3 focus after a row leaves its list', () => {
     ).toHaveFocus()
   })
 })
+
+describe('v2 store and newer-version data', () => {
+  const todo = (id: string, title: string, order: number, dueDate?: string): Task => ({
+    id, title, order, status: 'todo', createdAt: local(5, 1).toISOString(), ...(dueDate === undefined ? {} : { dueDate }),
+  })
+  const doneToday = (): Task => ({
+    id: 'd', title: 'เสร็จแล้ว', order: 9, status: 'done', createdAt: local(5, 1).toISOString(), completedAt: local(5, 8).toISOString(),
+  })
+  const freezeToday = () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(local(5, 9))
+  }
+  const addTaskBox = () => screen.getByRole('textbox', { name: labels.inputLabel })
+
+  it('AC-16.4 shows the newer-version message from labels, disables adding, hides the empty state, and leaves storage untouched', async () => {
+    const raw = '{\n  "schemaVersion": 3,\n  "tasks": []\n}\n'
+    localStorage.setItem(STORAGE_KEY, raw)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const { user } = setup()
+    const message = screen.getByText(labels.newerVersion)
+    expect(message).toHaveAttribute('role', 'status')
+    expect(addTaskBox()).toBeDisabled()
+    expect(button(labels.addButton)).toBeDisabled()
+    expect(screen.queryByText(labels.emptyNoTasks)).not.toBeInTheDocument()
+    expect(screen.queryByText(labels.emptyAllDone)).not.toBeInTheDocument()
+    expect(todoTitles()).toEqual([])
+
+    await user.click(button(labels.addButton))
+    expect(setItem).not.toHaveBeenCalled()
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+    expect(localStorage.getItem('task-priority-app:tasks:corrupt-backup')).toBeNull()
+  })
+
+  it.each<[string, Task[]]>([
+    ['no done task', [todo('a', 'A', 0)]],
+    ['a task finished today', [todo('a', 'A', 0), doneToday()]],
+  ])('S0-08 renders the newer-version message and no lists when the newer store holds %s', (_label, tasks) => {
+    freezeToday()
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: 3, tasks }))
+    setup()
+    expect(screen.getByText(labels.newerVersion)).toHaveAttribute('role', 'status')
+    expect(screen.getByRole('heading', { name: labels.todoHeading })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: labels.todoHeading })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: labels.doneHeading })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: labels.doneHeading })).not.toBeInTheDocument()
+  })
+
+  it('S0-01 renders todo and done-today tasks from a v2 store, including a task with dueDate', () => {
+    freezeToday()
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ schemaVersion: 2, tasks: [todo('b', 'B', 1), todo('a', 'A', 0, '2026-10-17'), doneToday()] }),
+    )
+    setup()
+    expect(todoTitles()).toEqual(['A', 'B'])
+    expect(doneTitles()).toEqual(['เสร็จแล้ว'])
+    expect(screen.queryByText(/2026-10-17|17\/10\/2026/)).not.toBeInTheDocument() // no deadline UI in this slice
+    expect(screen.queryByText(labels.newerVersion)).not.toBeInTheDocument()
+    expect(addTaskBox()).toBeEnabled()
+    expect(button(labels.addButton)).toBeEnabled()
+  })
+})

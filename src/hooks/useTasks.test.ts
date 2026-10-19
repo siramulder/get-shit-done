@@ -1,8 +1,8 @@
 import { createElement, StrictMode, type ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
 import { useTasks } from './useTasks'
-import { STORAGE_KEY } from '../lib/storage'
-import type { Task } from '../types/task'
+import { BACKUP_KEY, STORAGE_KEY } from '../lib/storage'
+import type { Store, Task } from '../types/task'
 
 type HookResult = { current: ReturnType<typeof useTasks> }
 
@@ -29,8 +29,10 @@ function snapshot(result: HookResult) {
   return { todo: result.current.todoTasks, done: result.current.doneTodayTasks }
 }
 
+// saveTasks writes a v2 Store. seed() still writes a bare MVP1 array on purpose, so every test that seeds
+// and then mutates also exercises the migration path.
 function stored(): Task[] {
-  return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as Task[]
+  return (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{"schemaVersion":2,"tasks":[]}') as Store).tasks
 }
 
 function seed(tasks: Task[]) {
@@ -43,7 +45,10 @@ function freezeAt(date: Date) {
 }
 
 beforeEach(() => localStorage.clear())
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 describe('addTask', () => {
   it('P1-24 adds a todo task that has an id and createdAt', () => {
@@ -395,11 +400,97 @@ describe('persistence', () => {
       { id: 'bad' },
     ])
     localStorage.setItem(STORAGE_KEY, raw)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
     const { result } = renderHook(() => useTasks())
     expect(titles(result.current.todoTasks)).toEqual(['A'])
     expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+    expect(setItem).not.toHaveBeenCalledWith(STORAGE_KEY, expect.anything()) // only the corrupt backup may be written on load
 
     act(() => result.current.addTask('B'))
     expect(stored().map((t) => t.id)).not.toContain('bad')
+  })
+})
+
+describe('v2 store and migration', () => {
+  // An MVP1 array as a real user would have it: a task completed in the middle leaves a gap in todo order.
+  const mvp1 = (): Task[] => [
+    { id: 'a', title: 'A', order: 0, status: 'todo', createdAt: local(5, 1).toISOString() },
+    { id: 'b', title: 'B', order: 2, status: 'todo', createdAt: local(5, 2).toISOString() },
+    { id: 'c', title: 'C', order: 3, status: 'todo', createdAt: local(5, 3).toISOString() },
+    { id: 'd', title: 'D', order: 1, status: 'done', createdAt: local(5, 0, 30).toISOString(), completedAt: local(5, 8).toISOString() },
+  ]
+  const schemaVersionStored = () =>
+    (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Store | null)?.schemaVersion
+  // Task C carries a dueDate that no mutation targets, so every write must carry it over untouched.
+  const withDue = (tasks: Task[]): Task[] => tasks.map((t) => (t.id === 'c' ? { ...t, dueDate: '2026-10-17' } : t))
+
+  it('AC-16.2 keeps the MVP1 array untouched until the first action, then writes a v2 store with every task', () => {
+    freezeAt(local(5, 9))
+    const raw = JSON.stringify(mvp1())
+    localStorage.setItem(STORAGE_KEY, raw)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const { result } = renderHook(() => useTasks())
+    expect(result.current.newerVersion).toBe(false)
+    expect(titles(result.current.todoTasks)).toEqual(['A', 'B', 'C'])
+    expect(titles(result.current.doneTodayTasks)).toEqual(['D'])
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+    expect(setItem).not.toHaveBeenCalled() // nothing at all is written on open, not even identical bytes
+
+    act(() => result.current.addTask('E'))
+    expect(setItem).toHaveBeenCalledTimes(1)
+    expect(setItem).toHaveBeenCalledWith(STORAGE_KEY, expect.any(String))
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Store
+    expect(parsed.schemaVersion).toBe(2)
+    expect(parsed.tasks.map((t) => t.id).sort()).toEqual(['a', 'b', 'c', 'd', idOf(result, 'E')].sort())
+    expect(parsed.tasks.find((t) => t.id === 'd')).toStrictEqual(mvp1()[3])
+    expect(localStorage.getItem(BACKUP_KEY)).toBeNull()
+  })
+
+  it('AC-16.4 data from a newer version: empty list, newerVersion flag, and no action touches localStorage', () => {
+    // Pretty-printed with a trailing newline so that any re-serialisation would differ byte for byte.
+    const raw =
+      '{\n  "schemaVersion": 3,\n  "tasks": [\n    {"id": "a", "title": "A", "order": 0, "status": "todo", "createdAt": "2026-10-05T01:00:00.000Z", "futureField": true}\n  ]\n}\n'
+    localStorage.setItem(STORAGE_KEY, raw)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const { result } = renderHook(() => useTasks())
+    expect(result.current.newerVersion).toBe(true)
+    expect(result.current.todoTasks).toEqual([])
+    expect(result.current.doneTodayTasks).toEqual([])
+
+    act(() => result.current.addTask('B'))
+    act(() => result.current.completeTask('a'))
+    act(() => result.current.uncompleteTask('a'))
+    act(() => result.current.deleteTask('a'))
+    act(() => result.current.moveTask('a', 'down'))
+    act(() => result.current.reorderTasks('a', 'b'))
+    expect(result.current.todoTasks).toEqual([])
+    expect(setItem).not.toHaveBeenCalled()
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+    expect(localStorage.getItem(BACKUP_KEY)).toBeNull()
+  })
+
+  it.each<[string, () => void]>([
+    ['an MVP1 array', () => localStorage.setItem(STORAGE_KEY, JSON.stringify(withDue(mvp1())))],
+    ['a v2 store', () => localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks: withDue(mvp1()) }))],
+  ])('S0-10 after each of the six mutations localStorage holds schemaVersion 2 (seeded with %s)', (_label, seedStore) => {
+    freezeAt(local(5, 9))
+    seedStore()
+    const { result } = renderHook(() => useTasks())
+    // Every step changes state (no no-ops), so every step must produce a write.
+    const steps: Array<[string, () => void]> = [
+      ['addTask', () => result.current.addTask('E')],
+      ['moveTask', () => result.current.moveTask('c', 'up')],
+      ['reorderTasks', () => result.current.reorderTasks('a', 'c')],
+      ['completeTask', () => result.current.completeTask('b')],
+      ['uncompleteTask', () => result.current.uncompleteTask('d')],
+      ['deleteTask', () => result.current.deleteTask('a')],
+    ]
+    for (const [name, run] of steps) {
+      localStorage.removeItem(STORAGE_KEY) // a missing write must be detected, not masked by the previous one
+      act(run)
+      expect(schemaVersionStored(), `after ${name}`).toBe(2)
+      expect(stored().length, `after ${name}`).toBeGreaterThan(0)
+      expect(stored().find((t) => t.id === 'c')?.dueDate, `after ${name}`).toBe('2026-10-17')
+    }
   })
 })

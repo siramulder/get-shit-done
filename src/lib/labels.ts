@@ -6,6 +6,7 @@ export const labels = {
   doneHeading: 'เสร็จวันนี้',
   emptyNoTasks: 'ยังไม่มีงาน เริ่มเพิ่มงานแรกของคุณได้เลย',
   emptyAllDone: 'ทำครบทุกงานแล้ว',
+  newerVersion: 'ข้อมูลในเครื่องนี้มาจากแอปเวอร์ชันใหม่กว่า จึงยังเพิ่มหรือแก้งานไม่ได้ ข้อมูลเดิมไม่ถูกแตะต้อง',
   moveUp: (title: string) => `เลื่อนขึ้น: ${title}`,
   moveDown: (title: string) => `เลื่อนลง: ${title}`,
   complete: (title: string) => `ทำเสร็จ: ${title}`,

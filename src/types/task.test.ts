@@ -1,8 +1,8 @@
 import { expectTypeOf } from 'vitest'
-import type { Task, TaskStatus } from './task'
+import type { Store, Task, TaskStatus } from './task'
 
 describe('Task type', () => {
-  it('P1-01 has exactly id, title, order, status, createdAt and optional completedAt', () => {
+  it('P1-01 has exactly id, title, order, status, createdAt, optional completedAt and optional dueDate', () => {
     expectTypeOf<Task>().toEqualTypeOf<{
       id: string
       title: string
@@ -10,6 +10,7 @@ describe('Task type', () => {
       status: 'todo' | 'done'
       createdAt: string
       completedAt?: string
+      dueDate?: string
     }>()
   })
 
@@ -19,5 +20,13 @@ describe('Task type', () => {
     // @ts-expect-error -- "archived" is not a TaskStatus
     const invalid: Task = { ...base, status: 'archived' }
     expect(invalid.status).toBe('archived')
+  })
+
+  it('S0-09 Store.schemaVersion accepts only 2 and dueDate is string | undefined', () => {
+    expectTypeOf<Store['schemaVersion']>().toEqualTypeOf<2>()
+    expectTypeOf<Task['dueDate']>().toEqualTypeOf<string | undefined>()
+    // @ts-expect-error -- 3 is not a schemaVersion this app understands
+    const future: Store = { schemaVersion: 3, tasks: [] }
+    expect(future.schemaVersion).toBe(3)
   })
 })

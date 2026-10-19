@@ -59,4 +59,10 @@ describe('TaskInput', () => {
     expect(input).toHaveValue('')
     expect(input).toHaveFocus()
   })
+
+  it('AC-16.4 the disabled prop disables both the text box and the button', () => {
+    render(<TaskInput onAdd={vi.fn()} disabled />)
+    expect(screen.getByRole('textbox', { name: labels.inputLabel })).toBeDisabled()
+    expect(screen.getByRole('button', { name: labels.addButton })).toBeDisabled()
+  })
 })

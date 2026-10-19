@@ -7,8 +7,17 @@ import { TaskInput } from './components/TaskInput'
 import { TaskList } from './components/TaskList'
 
 function App() {
-  const { todoTasks, doneTodayTasks, addTask, completeTask, uncompleteTask, deleteTask, moveTask, reorderTasks } =
-    useTasks()
+  const {
+    todoTasks,
+    doneTodayTasks,
+    newerVersion,
+    addTask,
+    completeTask,
+    uncompleteTask,
+    deleteTask,
+    moveTask,
+    reorderTasks,
+  } = useTasks()
   const todoHeadingId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const focusInput = () => inputRef.current?.focus()
@@ -19,14 +28,21 @@ function App() {
         <h1 className="text-2xl font-semibold">{labels.appTitle}</h1>
 
         <div className="mt-4">
-          <TaskInput onAdd={addTask} inputRef={inputRef} />
+          <TaskInput onAdd={addTask} inputRef={inputRef} disabled={newerVersion} />
         </div>
 
         <section aria-labelledby={todoHeadingId} className="mt-6">
           <h2 id={todoHeadingId} className="text-lg font-semibold">
             {labels.todoHeading}
           </h2>
-          {todoTasks.length === 0 ? (
+          {newerVersion ? (
+            <p
+              role="status"
+              className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+            >
+              {labels.newerVersion}
+            </p>
+          ) : todoTasks.length === 0 ? (
             <EmptyState variant={doneTodayTasks.length > 0 ? 'allDone' : 'noTasks'} />
           ) : (
             <TaskList
