@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-10-19 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 เสร็จ (commit แล้ว ยังไม่ push)
+อัปเดต: 2026-10-20 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 deploy แล้ว
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -12,8 +12,8 @@
 |---|---|
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" โดยเฉพาะ M-05 (สัมผัสบนเครื่องจริง) และ M-09 (VoiceOver) |
-| Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ ตอนนี้ยังเป็น MVP1 (`19ccfad`) เพราะ slice 0 ยังไม่ได้ push — อ่าน "ความเสี่ยงการ deploy" ก่อน push |
-| v2 | slice 0 เสร็จและ commit แล้ว (ดูสรุปด้านล่าง) slice 1 ยังไม่เริ่ม |
+| Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
+| v2 | slice 0 เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) slice 1 ยังไม่เริ่ม |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -53,7 +53,7 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 
 | Slice | Story | AC | สถานะ |
 |---|---|---|---|
-| 0 | US-16 migration + ปลด scope guard + US-17 contrast placeholder | AC-16.1 ถึง 16.4, AC-17.1, S0-01 ถึง S0-10 (+S0-05b) | เสร็จ `f335a93` (docs), `878b6be` (feat), `ae0df0d` (fix), chore verify-v2 (commit ถัดไป) |
+| 0 | US-16 migration + ปลด scope guard + US-17 contrast placeholder | AC-16.1 ถึง 16.4, AC-17.1, S0-01 ถึง S0-10 (+S0-05b) | เสร็จ `f335a93` (docs), `878b6be` (feat), `ae0df0d` (fix), `c68af21` (chore) · deploy 2026-10-20 |
 | 1 | US-6, 7, 8, 10 ตรวจลำดับ | AC-6.1, 6.2, 6.4, AC-7.x, AC-8.1, AC-10.x, AC-F1.1, F1.3 | ยังไม่เริ่ม |
 | 2 | US-15 + US-9 undo/redo | AC-15.x, AC-9.1, 9.2 | ยังไม่เริ่ม |
 | 3 | US-11, 12, 13 deadline | AC-11.x, AC-12.x, AC-13.x และ AC-6.3 | ยังไม่เริ่ม |
@@ -69,7 +69,7 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 | `f335a93` | docs: PRD-v2 (รวม US-17/AC-17.1 ที่เพิ่มใน slice นี้), CLAUDE.md v2, DEV_PLAN v2, ลบ docs/CLAUDE.md ที่ซ้ำ |
 | `878b6be` | feat(v2): Store v2 + migration + dueDate validation + สถานะ "เวอร์ชันใหม่กว่า" + เทสต์ AC-16.x / S0-xx + MANUAL_QA M-15, M-16 |
 | `ae0df0d` | fix(v2): placeholder light mode gray-500 (4.84:1) + เทสต์ AC-17.1 + MANUAL_QA M-14 |
-| chore | verify-v2.sh + verify-v2.selftest.sh + DEV_PLAN นี้ |
+| `c68af21` | verify-v2.sh + verify-v2.selftest.sh + DEV_PLAN นี้ |
 
 - **เทสต์:** 212 ข้อ (MVP1 เดิม 160 + ใหม่ 52) ผ่านครบ shuffle ×3 build lint ผ่าน · ID เทสต์ MVP1 ทั้ง 106 ตัวยังอยู่ (V2-06)
 - **รีวิวอิสระหลัง commit (3 มุมมอง + ลองหักล้าง):** ไม่พบการละเมิดกฎ 1–8 · เจอเทสต์ที่ยังอ่อน 3 จุดและแก้แล้ว (รวมเข้า commit feat/fix ด้วย autosquash ก่อน push): S0-02 ยอมรับ dueDate ทั้งใน array MVP1 และ Store v2 (ทั้ง todo และ done), S0-04 ตรวจกฎรายชิ้นใน Store v2 ด้วย (status ผิด + id ซ้ำ), กฎ "ไม่เขียนตอนเปิด" พิสูจน์ด้วย spy `setItem` ไม่ใช่แค่เทียบค่า (AC-16.1, AC-16.2, AC-16.4, เทสต์ mount) · S0-10 ให้งาน C มี dueDate ที่ทุก mutation ต้องรักษาไว้ · App S0-01 ยืนยันว่ายังไม่มี UI deadline · self-test กรณี l ตรวจจากบรรทัดหลักฐานเท่านั้น (คำว่า loadTasks อยู่ในหัวข้อ FAIL อยู่แล้ว) · พิสูจน์ด้วย mutant 2 ตัวที่เทสต์เดิมจับไม่ได้: effect ตอน mount ที่เขียน byte เดิมกลับ → ตอนนี้ fail 4 ข้อ / toTask รับ dueDate เฉพาะใน Store v2 → ตอนนี้ fail 4 ข้อ
@@ -117,14 +117,15 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 ## ค้างอยู่ / จดไว้ไม่แก้
 
 - MANUAL_QA ของ MVP1 ยังรอ PO กรอก M-05 และ M-09 · M-14 (รอบ AC-17.1), M-15, M-16 รอ PO ยืนยัน
-- slice 0 ยังไม่ได้ push — push เมื่อ PO สั่ง และอ่าน "ความเสี่ยงการ deploy" ก่อน
+- M-16 ผ่านบนเครื่องจริงของ PO แล้ว (2026-10-20) → push และ deploy slice 0 แล้ว
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
 - Export/Import JSON ตัดออกจาก v2 เพื่อรักษาขนาด เป็น P1 ถัดไป (`Store` มี `schemaVersion` รองรับแล้ว)
 
-## ความเสี่ยงการ deploy (อ่านก่อน push slice 0 ขึ้น main)
+## ความเสี่ยงการ deploy (มีผลตั้งแต่ slice 0 ขึ้น main เมื่อ 2026-10-20)
 
-- push `main` = deploy ทันที ผู้ใช้ MVP1 ทุกคน (รวม PO) จะได้ v2 และ localStorage ของเขาจะถูกเขียนเป็น Store v2 **เมื่อกดอะไรครั้งแรก** (ก่อนหน้านั้นยังเป็น array เดิม)
-- **ห้าม rollback deploy กลับไป MVP1 หลังจากนั้น:** MVP1 อ่าน Store v2 ไม่ออก (ไม่ใช่ array → ตีเป็นข้อมูลเสีย) จะแสดงลิสต์ว่าง และถ้าผู้ใช้เพิ่มงานใน MVP1 ต่อ ข้อมูล v2 จะเหลืออยู่แค่ใน key backup — ให้ **fix forward เท่านั้น** (แก้บน v2 แล้ว push ใหม่)
+- จุดอ้างอิง: **tag `v1.0-mvp1` = `19ccfad`** คือ MVP1 ตัวสุดท้ายที่อ่าน localStorage แบบ `Task[]` ล้วน ทุก commit หลังจากนี้เขียน Store v2
+- push `main` = deploy ทันที ผู้ใช้ MVP1 ทุกคน (รวม PO) ได้ v2 และ localStorage ของเขาถูกเขียนเป็น Store v2 **เมื่อกดอะไรครั้งแรก** (ก่อนหน้านั้นยังเป็น array เดิม)
+- **ห้าม rollback deploy กลับไป `v1.0-mvp1` หรือ commit ก่อนหน้า:** MVP1 อ่าน Store v2 ไม่ออก (ไม่ใช่ array → ตีเป็นข้อมูลเสีย) จะแสดงลิสต์ว่าง และถ้าผู้ใช้เพิ่มงานใน MVP1 ต่อ ข้อมูล v2 จะเหลืออยู่แค่ใน key backup — ให้ **fix forward เท่านั้น** (แก้บน v2 แล้ว push ใหม่)
 - **ขั้นตอนกู้ข้อมูลถ้าเกิดขึ้นแล้ว** (ทำในเบราว์เซอร์ของผู้ใช้ก่อนที่จะมีการโหลดข้อมูลเสียชุดใหม่มาทับ backup):
   1. เปิด DevTools → Console บนหน้าแอป
   2. ดูว่ามี backup: `localStorage.getItem('task-priority-app:tasks:corrupt-backup')` — ต้องขึ้นต้นด้วย `{"schemaVersion":2`
