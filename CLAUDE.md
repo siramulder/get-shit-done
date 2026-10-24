@@ -81,6 +81,34 @@ If a task seems to need any of these, stop and ask instead of implementing.
 - Delete is immediate: no confirm dialog, never `window.confirm`.
 - UI text in Thai unless told otherwise.
 
+## Visual Direction (R — neon on white)
+- Mood: a highlighter on paper. Calm white page, black ink, and neon used only where it means something.
+- Two neon hues only, plus black/white/gray. Every color has one job:
+  - neon (lime) = the app and deciding: header title, primary buttons, "ตรวจลำดับ", both review cards
+  - hot (pink) = time that needs attention: overdue badge fill, the dot in the "today" badge
+  - everything else is ink, paper, or muted gray; done tasks are muted gray + strikethrough
+- Neon is only ever a fill. Text on neon is always ink (#0a0a0a) in both themes. Neon text appears only on ink backgrounds (the header title, the skip button). Never neon text on paper.
+- Both review cards always use the same color, so color never favors one answer.
+- No glow, no gradients, no shadows. Borders are 2px ink. Radius: rows 12px, review cards 20px, badges 6px, pills 999px.
+- All colors come from tokens in src/index.css. Components never contain hex values or Tailwind palette colors (gray-500 etc.).
+- Font: Chakra Petch 500/600/700 (Google Fonts link in index.html), fallback system-ui, sans-serif; line-height 1.55.
+
+Tokens (declared in `src/index.css` with `@theme`; dark values switch on `prefers-color-scheme`; use as `bg-paper`, `text-ink`, `bg-neon` …):
+
+| token | light | dark | used for |
+|---|---|---|---|
+| paper | #ffffff | #0a0a0a | page background |
+| surface | #ffffff | #171717 | task rows, text box |
+| ink | #0a0a0a | #f5f5f5 | main text, borders, focus ring |
+| muted | #4b5563 | #a3a3a3 | secondary text, placeholder, done tasks |
+| line | #0a0a0a | #a3a3a3 | 2px row borders |
+| disabled | #d1d5db | #404040 | disabled ↑↓ buttons |
+| header | #0a0a0a | #0a0a0a | app header bar |
+| header-line | #0a0a0a | #262626 | 2px line under the header (visible in dark only) |
+| neon | #c6ff00 | #c6ff00 | see the rules above |
+| on-neon | #0a0a0a | #0a0a0a | text on neon and on hot |
+| hot | #ff2e88 | #ff2e88 | see the rules above |
+
 ## Testing Conventions
 - Put the requirement ID in the test name — v2 uses the AC ids from `docs/PRD-v2.md` (e.g. `it('AC-7.2 swaps the pair and advances', …)`); MVP1 tests keep their P1-xx / P2-xx ids.
 - Colocate `*.test.ts(x)` with the file under test; query by role + accessible name taken from `labels`.
