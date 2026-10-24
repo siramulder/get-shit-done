@@ -16,7 +16,7 @@ type Props = {
 }
 
 const iconButton =
-  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-lg text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent dark:text-gray-200 dark:hover:bg-gray-800'
+  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-lg text-ink hover:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:text-disabled disabled:hover:bg-transparent'
 const controlButton = `${iconButton} cursor-pointer`
 
 export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComplete, onDelete, focusFallback }: Props) {
@@ -30,8 +30,8 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
       ref={setNodeRef}
       {...listeners}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex cursor-grab items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 active:cursor-grabbing dark:border-gray-800 dark:bg-gray-900 ${
-        isDragging ? 'relative z-10 shadow-lg' : ''
+      className={`flex cursor-grab items-center gap-1 rounded-xl border-2 border-line bg-surface p-1 active:cursor-grabbing ${
+        isDragging ? 'relative z-10 outline-2 outline-ink' : ''
       }`}
     >
       <button
@@ -39,11 +39,11 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
         ref={setActivatorNodeRef}
         {...attributes}
         aria-label={labels.dragHandle(task.title)}
-        className={`${iconButton} cursor-grab touch-none text-gray-400 active:cursor-grabbing`}
+        className={`${iconButton} cursor-grab touch-none text-muted active:cursor-grabbing`}
       >
         <span aria-hidden="true">⠿</span>
       </button>
-      <span className="min-w-0 flex-1 break-words px-1 text-gray-900 dark:text-gray-100">{task.title}</span>
+      <span className="min-w-0 flex-1 break-words px-1 text-[17px] font-semibold text-ink">{task.title}</span>
       <button
         type="button"
         onClick={() => onMoveUp(task.id)}
@@ -70,7 +70,7 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
           onComplete(task.id)
         }}
         aria-label={labels.complete(task.title)}
-        className={`${controlButton} text-green-700 dark:text-green-400`}
+        className={controlButton}
       >
         <span aria-hidden="true">✓</span>
       </button>
@@ -82,7 +82,7 @@ export function TaskItem({ task, isFirst, isLast, onMoveUp, onMoveDown, onComple
           onDelete(task.id)
         }}
         aria-label={labels.remove(task.title)}
-        className={`${controlButton} text-red-600 dark:text-red-400`}
+        className={controlButton}
       >
         <span aria-hidden="true">✕</span>
       </button>

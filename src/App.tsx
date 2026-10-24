@@ -23,22 +23,24 @@ function App() {
   const focusInput = () => inputRef.current?.focus()
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      <main className="mx-auto w-full max-w-xl px-4 py-6 sm:py-10">
-        <h1 className="text-2xl font-semibold">{labels.appTitle}</h1>
-
-        <div className="mt-4">
-          <TaskInput onAdd={addTask} inputRef={inputRef} disabled={newerVersion} />
+    <div className="min-h-screen bg-paper text-ink">
+      <header className="border-b-2 border-header-line bg-header">
+        <div className="mx-auto w-full max-w-xl px-4 py-5">
+          <h1 className="text-[30px] font-bold leading-tight text-neon">{labels.appTitle}</h1>
+          <div className="mt-4">
+            <TaskInput onAdd={addTask} inputRef={inputRef} disabled={newerVersion} />
+          </div>
         </div>
-
-        <section aria-labelledby={todoHeadingId} className="mt-6">
+      </header>
+      <main className="mx-auto w-full max-w-xl px-4 py-6 sm:py-8">
+        <section aria-labelledby={todoHeadingId}>
           <h2 id={todoHeadingId} className="text-lg font-semibold">
             {labels.todoHeading}
           </h2>
           {newerVersion ? (
             <p
               role="status"
-              className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+              className="mt-3 rounded-xl border-2 border-ink bg-surface px-4 py-3 text-ink"
             >
               {labels.newerVersion}
             </p>

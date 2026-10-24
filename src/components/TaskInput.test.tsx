@@ -66,12 +66,12 @@ describe('TaskInput', () => {
     expect(screen.getByRole('button', { name: labels.addButton })).toBeDisabled()
   })
 
-  // jsdom cannot resolve Tailwind colours, so this only pins the classes. The real contrast
-  // (≥ 4.5:1 in light and dark) is measured in the browser: docs/MANUAL_QA.md M-14.
-  it('AC-17.1 placeholder uses a light-mode colour that reads at 4.5:1 and keeps the dark-mode one', () => {
+  // jsdom cannot resolve Tailwind colours, so this only pins the token class. The real contrast of the
+  // `muted` token (≥ 4.5:1 on `surface` in light and dark) is measured in the browser: docs/MANUAL_QA.md M-14.
+  it('AC-17.1 placeholder uses the muted token, which reads at 4.5:1 on the surface in both themes', () => {
     const { input } = setup()
     const classes = input.className.split(/\s+/)
-    expect(classes.filter((c) => c.includes('placeholder:'))).toEqual(['placeholder:text-gray-500', 'dark:placeholder:text-gray-400'])
+    expect(classes.filter((c) => c.includes('placeholder:'))).toEqual(['placeholder:text-muted'])
     expect(classes.filter((c) => /^opacity-/.test(c))).toEqual([])
   })
 })

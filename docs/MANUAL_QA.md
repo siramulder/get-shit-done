@@ -30,3 +30,21 @@ M-15 และ M-16 (v2 slice 0) ตรวจเมื่อ 2026-10-19 ที�
 | M-14 | สลับ `prefers-color-scheme` เป็น light และ dark | ข้อความทุกส่วน ปุ่ม disabled และ focus ring อ่านออก/มองเห็นได้ทั้งสองโหมด | browser pane + วัด contrast ตาม WCAG | ✅ ทุกจุดผ่าน (focus ring light 5.25:1 / dark 3.38:1) **ยกเว้น** placeholder ใน light 2.6:1 ซึ่ง PO ตัดสินให้จดไว้ / ปุ่ม disabled light 1.71:1 มองเห็นได้ · **v2 slice 0 (2026-10-19, AC-17.1):** placeholder เปลี่ยนเป็น gray-500 ใน light → วัดใน browser pane ได้ **light 4.84:1** (rgb 106,114,130 บนขาว) / **dark 6.82:1** (คง gray-400) ผ่าน ≥ 4.5:1 ทั้งสองโหมด · ปุ่ม disabled ยังจดไว้ไม่แก้ | |
 | M-15 | ใส่ `{ "schemaVersion": 3, "tasks": [...] }` (pretty-print) ที่ key `task-priority-app:tasks` ผ่าน DevTools แล้ว reload จากนั้นพิมพ์ในช่อง กด Enter และคลิกปุ่มเพิ่มงาน ทำทั้ง light และ dark | เห็นข้อความจาก labels ว่าข้อมูลมาจากเวอร์ชันใหม่กว่า ไม่มี empty state ไม่มีลิสต์ ช่องเพิ่มงานและปุ่ม disabled อ่านออกทั้งสองโหมด และ localStorage ไม่เปลี่ยนแม้แต่ตัวอักษรเดียว | จำลอง (ใส่ผ่าน JS) + browser pane + วัด contrast ตาม WCAG | ✅ ข้อความ (`role="status"`) dark 13.47:1 / light 8.73:1 · ช่องและปุ่ม disabled ทั้งสองโหมด ไม่มี empty state ไม่มี `<ul>` · พิมพ์ "test"+Enter และคลิกปุ่ม → ช่องยังว่าง raw ยังเป็น v3 ทุกตัวอักษร ไม่มี key backup · placeholder ของช่องที่ disabled (opacity 0.6): dark 3.13:1 / light 1.71:1 และปุ่ม disabled light 2.63:1 — มองเห็นแต่จาง (WCAG ยกเว้น control ที่ disabled) | |
 | M-16 | ใส่ localStorage ของ MVP1 จริง (payload เดียวกับเทสต์ AC-16.1: 3 todo ที่ order 0/2/3 + 1 done วันนี้) แล้ว reload → กด ↓ ที่งานแรก 1 ครั้ง → reload | โหลดแล้วงานครบ ลำดับเดิม raw ยังเป็น array ไม่มี backup · หลังกด localStorage เป็น Store v2 ครบ 4 งาน งาน done ยังมี completedAt เดิม · reload แล้วยังครบตามลำดับใหม่ | จำลอง (ใส่ผ่าน JS) + browser pane | ✅ โหลด: todo ซื้อนม → โทรหาลูกค้า "บริษัท A" → จองตั๋ว 🚀 / เสร็จวันนี้ ส่งรายงานประจำสัปดาห์ · raw ยังเป็น array (591 ตัวอักษร) backup = null · กด ↓ → `{ schemaVersion: 2, tasks: [4 งาน] }` done มี completedAt เดิม · reload → โทรหาลูกค้า → ซื้อนม → จองตั๋ว + เสร็จวันนี้ครบ | |
+
+## Visual direction R — contrast ที่วัดได้ (2026-10-24, browser pane, dev server, commit `style: apply visual direction R`)
+
+วัดด้วย canvas-readback ของสีจริงจาก `getComputedStyle` (token และ element จริง) ทั้ง light และ dark · เกณฑ์ ≥ 4.5:1 · `noShadow` = ไม่มี `box-shadow` บน li/button/input ทั้งสองโหมด ✅ · ฟอนต์ Chakra Petch 500/600/700 โหลดจาก Google Fonts สำเร็จ
+
+| คู่สี | light | dark | ผ่าน |
+|---|---|---|---|
+| ink / paper | 19.80 | 18.16 | ✅ |
+| ink / surface (ชื่องานบนแถว) | 19.80 | 16.44 | ✅ |
+| muted / paper | 7.56 | 7.85 | ✅ |
+| muted / surface (placeholder, งานเสร็จ) | 7.56 | 7.11 | ✅ |
+| on-neon / neon (ปุ่มเพิ่มงาน) | 16.69 | 16.69 | ✅ |
+| on-neon / hot (ยังไม่มีใน UI จนถึง slice 3 วัดจาก token) | 5.66 | 5.66 | ✅ |
+| neon / header (ชื่อแอป) | 16.69 | 16.69 | ✅ |
+| line / surface (ขอบแถว 2px) | 19.80 | 7.11 | ✅ |
+| disabled / surface (ปุ่ม ↑↓ disabled — WCAG ยกเว้น) | 1.47 | 1.73 | จดไว้ |
+
+หมายเหตุ: ต้องใช้ `@theme static` ใน `src/index.css` ไม่งั้น Tailwind v4 ตัด token ที่ยังไม่มี class ใช้ (เช่น `hot`) ออกจาก CSS
