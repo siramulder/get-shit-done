@@ -7,7 +7,7 @@ set -o pipefail
 cd "$(dirname "$0")/.." || { echo "FATAL: cannot cd to project root"; exit 2; }
 ROOT="$(pwd)"
 VERIFY="scripts/verify-v2.sh"
-TARGET_IDS="V2-01 V2-02 V2-03 V2-04 V2-05 V2-06 V2-07 V2-08 V2-09 V2-13"
+TARGET_IDS="V2-01 V2-02 V2-03 V2-04 V2-05 V2-06 V2-07 V2-08 V2-09 V2-13 V2-14"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/verify-v2-selftest.XXXXXX")" || { echo "FATAL: mktemp failed"; exit 2; }
 COPY="$WORK/project"
@@ -101,6 +101,11 @@ mutate_i() { replace_text src/components/TaskItem.tsx 'className={`flex cursor-g
 mutate_j() { append_line scripts/verify-phase2.sh "# selftest: one-line change"; }
 mutate_k() { append_line src/components/EmptyState.tsx "export const selftestNotify = () => new window.Notification('x')"; }
 mutate_l() { append_line src/hooks/useTasks.ts "export const selftestTasks = loadTasks()"; }
+mutate_m() { rename_id 'AC-7.2' 'AC-7.X'; }
+mutate_n() { replace_text src/lib/review.ts 'export type Answer' "import { loadStore } from './storage'
+export const selftestLoad = loadStore
+export type Answer"; }
+mutate_o() { replace_text src/components/EmptyState.tsx 'text-muted' 'text-gray-500'; }
 
 # run_case <letter> <expected-id> <description> <mutation> [<text the evidence lines (not the FAIL headline) must contain>]
 run_case() {
@@ -140,6 +145,9 @@ run_case i "V2-09" "ใส่ touch-none ที่ <li> ของการ์ด
 run_case j "V2-13" "แก้ scripts/verify-phase2.sh 1 บรรทัด"            mutate_j
 run_case k "V2-08" "เพิ่ม window.Notification ใน component"           mutate_k
 run_case l "V2-02" "เรียก loadTasks() ใน useTasks.ts"                 mutate_l "selftestTasks"
+run_case m "V2-07" "เปลี่ยนชื่อเทสต์ให้ AC-7.2 หายไป"                  mutate_m "AC-7.2"
+run_case n "V2-02" "import { loadStore } ใน lib/review.ts"            mutate_n "src/lib/review.ts"
+run_case o "V2-14" "ใส่ text-gray-500 ใน component"                    mutate_o "text-gray-500"
 
 echo
 echo "== 3. Results =="

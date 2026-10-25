@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-10-20 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 deploy แล้ว
+อัปเดต: 2026-10-25 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 deploy แล้ว · visual direction R + slice 1 commit แล้ว (ยังไม่ push)
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -54,7 +54,7 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 | Slice | Story | AC | สถานะ |
 |---|---|---|---|
 | 0 | US-16 migration + ปลด scope guard + US-17 contrast placeholder | AC-16.1 ถึง 16.4, AC-17.1, S0-01 ถึง S0-10 (+S0-05b) | เสร็จ `f335a93` (docs), `878b6be` (feat), `ae0df0d` (fix), `c68af21` (chore) · deploy 2026-10-20 |
-| 1 | US-6, 7, 8, 10 ตรวจลำดับ | AC-6.1, 6.2, 6.4, AC-7.x, AC-8.1, AC-10.x, AC-F1.1, F1.3 | ยังไม่เริ่ม |
+| 1 | US-6, 7, 8, 10 ตรวจลำดับ | AC-6.1, 6.2, 6.4, AC-7.1–7.6, AC-8.1, AC-10.1–10.3, AC-F1.1, F1.3, S1-01–S1-11 | เสร็จ (commit แล้ว ยังไม่ push — รอ PO ลองใช้) ดูสรุปด้านล่าง |
 | 2 | US-15 + US-9 undo/redo | AC-15.x, AC-9.1, 9.2 | ยังไม่เริ่ม |
 | 3 | US-11, 12, 13 deadline | AC-11.x, AC-12.x, AC-13.x และ AC-6.3 | ยังไม่เริ่ม |
 | 4 | US-14 แก้ชื่อ inline | AC-14.x | ยังไม่เริ่ม |
@@ -92,6 +92,35 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 - `uncompleteTask` (useTasks.ts) สร้าง task ใหม่จาก field ที่ระบุชื่อตายตัว → งาน done ที่มี dueDate กด ↩ แล้ว dueDate หาย **slice 3 ต้องแก้พร้อมเทสต์ AC-12.5** (ใน slice 0 ยังไม่มีทางได้ dueDate นอกจากแก้ข้อมูลเอง S0-03 จึงพิสูจน์แค่ระดับโหลด)
 - `README.md` ยังเขียนว่า MVP1 และชี้ไป verify-phase2.sh — ไม่อยู่ในขอบเขต slice 0
 - ปุ่ม ↑↓ disabled ใน light mode 1.71:1 ยังจดไว้ไม่แก้ (WCAG ยกเว้น control ที่ disabled) · placeholder ของช่องที่ disabled ตอน "เวอร์ชันใหม่กว่า" light ≈ 2.6:1 หลังแก้ gray-500 แล้วลด opacity 0.6
+
+### Visual direction R + v2 slice 1 — สรุป (2026-10-25)
+
+| Commit | เนื้อหา |
+|---|---|
+| `77b6bb5` | docs: add visual direction R to CLAUDE.md (+ token header-line) |
+| `d57b686` | style: apply visual direction R — token ใน `src/index.css` (`@theme static`), Chakra Petch, header ดำ, ขอบ 2px, ไม่มีเงา · AC-17.1 ตรวจ `placeholder:text-muted` แทน class palette (ID คงเดิม) |
+| feat | feat(v2): pairwise review mode — `src/lib/review.ts` (pure) + `ReviewMode` + ปุ่ม "ตรวจลำดับ" ใน App |
+| chore | chore: verify-v2 slice 1 checks and self-test (+ เอกสารนี้, MANUAL_QA M-17–M-21) |
+
+- **contrast R (วัดใน browser pane):** ทุกคู่ที่ต้องผ่าน ≥ 4.5:1 ทั้งสองโหมด ต่ำสุด on-neon/hot 5.66 (ตารางเต็มใน MANUAL_QA)
+- **เทสต์:** 256 ข้อ (เดิม 212 + slice 1 44) · ลองทำโค้ดพัง 5 แบบ: (ก) ไม่ swap → แดง 16 ข้อ รวม AC-7.2, 7.4, S1-02 · (ข) เริ่มคู่บนสุด → 26 ข้อ รวม AC-7.1, S1-01 · (ค) ไม่คืน focus → AC-6.4 ×3 · (ง) ซ่อนหน้าหลักด้วย CSS → AC-6.2, AC-10.1, AC-8.1 · (จ) การ์ดล่างคนละสี → S1-10 ×2
+- **verify-v2:** `--slice 1` ตรวจสะสม 42 ID · V2-02 ครอบความบริสุทธิ์ของ `review.ts` · V2-14 ใหม่ (ไม่มี hex/palette ใน components + App — เลือกตรวจที่นี่แทน S1-V1) · self-test 15 กรณี (a–o)
+- **browser pane:** M-17, M-18, M-19, M-20 (375×812 และ 1280×900 ทั้ง light/dark), M-02 ซ้ำ ผ่าน · M-21 VoiceOver รอ PO
+
+**การตัดสินใจใน slice นี้ (PO ตอบระหว่างวางแผน):**
+- header ในโหมดตรวจลำดับ = แถบดำ + ชื่อแอปเท่านั้น (ไม่ render ช่องเพิ่มงาน)
+- focus หลังตอบ = คงที่การ์ดที่กด · หน้าสรุป → "อีกรอบ" · "อีกรอบ" → การ์ดบน
+- Escape + focus trap ผูกที่ element นอกสุดของโหมด (`tabIndex=-1` ครอบ header + dialog) ไม่มี listener บน document จึงไม่ชน Escape ของการลากด้วยคีย์บอร์ด
+- ปุ่ม "ตรวจลำดับ" disabled บอกเหตุผลด้วย `aria-describedby` · ไม่แสดงเมื่อเป็นข้อมูลเวอร์ชันใหม่กว่า
+- ลาก = outline 2px ink แทนเงา, hover = `bg-ink/10`, newerVersion = surface + ขอบ ink
+- ปุ่ม "ข้าม" = พื้น `header` (ดำคงที่) ตัวหนังสือ neon ทั้งสองโหมด (พื้น ink ใน dark เป็นสีขาว neon อ่านไม่ออก 1.09:1)
+- focus ring ของช่องพิมพ์/ปุ่มเพิ่มงานในแถบ header = neon (ink มองไม่เห็นบนแถบดำ)
+
+**สิ่งที่เจอระหว่างทาง:**
+- Tailwind v4 ตัด token ที่ยังไม่มี class ใช้ (เช่น `hot`) → ต้องใช้ `@theme static`
+- `min-h` ชนะ `max-h` ใน CSS → dialog สูง 740px ที่ 1280×900 ตอนแรก แก้เป็น `min-h-[min(calc(100dvh-10rem),44rem)]` ได้ 704px
+- oxlint เตือน setState ใน effect (กฎ "todo < 2 ปิดโหมดเอง") → เปลี่ยนเป็นค่าที่คำนวณระหว่าง render
+- shuffle รอบหนึ่ง fail 4 ข้อด้วยเวลา ~900 วินาที/ข้อ ขณะเครื่องพักระหว่างรันพร้อม self-test — รันซ้ำบนเครื่องว่าง (ดูผล gate สุดท้าย)
 
 ### การตัดสินใจของ v2
 

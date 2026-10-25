@@ -14,7 +14,8 @@ BASE_HASH=19ccfada7707c509d73a0f61effb89096df3ed00
 # Test ids that must appear in *.test.ts(x) names, per slice (checked cumulatively 0..N).
 # When a slice starts: add SLICE_<n>="..." and bump LATEST_SLICE.
 SLICE_0="AC-16.1 AC-16.2 AC-16.3 AC-16.4 AC-17.1 S0-01 S0-02 S0-03 S0-04 S0-05 S0-05b S0-06 S0-07 S0-08 S0-09 S0-10"
-LATEST_SLICE=0
+SLICE_1="AC-6.1 AC-6.2 AC-6.4 AC-7.1 AC-7.2 AC-7.3 AC-7.4 AC-7.5 AC-7.6 AC-8.1 AC-10.1 AC-10.2 AC-10.3 AC-F1.1 AC-F1.3 S1-01 S1-02 S1-03 S1-04 S1-05 S1-06 S1-07 S1-08 S1-09 S1-10 S1-11"
+LATEST_SLICE=1
 
 PRE_COMMIT=0
 SLICE=""
@@ -153,6 +154,9 @@ grep -E '^src/components/' "$NON_TEST" > "$COMPONENTS"
 cp "$COMPONENTS" "$COMPONENTS_AND_APP"
 [ -f src/App.tsx ] && echo "src/App.tsx" >> "$COMPONENTS_AND_APP"
 grep -v '^src/lib/storage\.ts$' "$NON_TEST" > "$NON_TEST_EXCEPT_STORAGE"
+PURE_LIB="$TMP_DIR/pure-lib"
+: > "$PURE_LIB"
+[ -f src/lib/review.ts ] && echo "src/lib/review.ts" >> "$PURE_LIB"
 
 if git cat-file -e "${BASE_HASH}^{commit}" 2>/dev/null; then
   BASE=$BASE_HASH
@@ -185,14 +189,16 @@ report_scan "V2-01" "no Thai characters in src/components or src/App.tsx (non-te
 
 V202_A="$(scan_lines "$COMPONENTS" '[\x27"][^\x27"]*(hooks/useTasks|lib/storage|lib/date)(\.tsx?)?[\x27"]|\blocalStorage\b' '' 2>&1)"; V202_A_RC=$?
 V202_B="$(scan_lines "$NON_TEST_EXCEPT_STORAGE" '\bloadTasks\s*\(' '' 2>&1)"; V202_B_RC=$?
-if [ $V202_A_RC -eq 0 ] && [ $V202_B_RC -eq 0 ]; then
-  pass "V2-02" "components do not import useTasks / lib/storage / lib/date or use localStorage; loadTasks( is used only in lib/storage.ts and tests"
-elif [ $V202_A_RC -gt 1 ] || [ $V202_B_RC -gt 1 ]; then
+# Pure logic (src/lib/review.ts) must not reach React, storage, dates or the hook.
+V202_C="$(scan_lines "$PURE_LIB" '[\x27"](react|react-dom|[^\x27"]*(hooks/useTasks|storage|date))(\.tsx?)?[\x27"]|\blocalStorage\b' '' 2>&1)"; V202_C_RC=$?
+if [ $V202_A_RC -eq 0 ] && [ $V202_B_RC -eq 0 ] && [ $V202_C_RC -eq 0 ]; then
+  pass "V2-02" "components do not import useTasks / lib/storage / lib/date or use localStorage; loadTasks( only in lib/storage.ts and tests; lib/review.ts imports no react / storage / date / useTasks"
+elif [ $V202_A_RC -gt 1 ] || [ $V202_B_RC -gt 1 ] || [ $V202_C_RC -gt 1 ]; then
   fail "V2-02" "the check could not run"
-  printf '%s\n%s\n' "$V202_A" "$V202_B" | evidence
+  printf '%s\n%s\n%s\n' "$V202_A" "$V202_B" "$V202_C" | evidence
 else
-  fail "V2-02" "a component reaches past its props, or loadTasks( is called outside lib/storage.ts (the app must use loadStore)"
-  { [ $V202_A_RC -eq 1 ] && printf '%s\n' "$V202_A"; [ $V202_B_RC -eq 1 ] && printf '%s\n' "$V202_B"; } | evidence
+  fail "V2-02" "a component reaches past its props, loadTasks( is called outside lib/storage.ts, or lib/review.ts is not pure"
+  { [ $V202_A_RC -eq 1 ] && printf '%s\n' "$V202_A"; [ $V202_B_RC -eq 1 ] && printf '%s\n' "$V202_B"; [ $V202_C_RC -eq 1 ] && printf '%s\n' "$V202_C"; } | evidence
 fi
 
 if [ -z "$BASE" ]; then
@@ -245,6 +251,10 @@ case $? in
   1) fail "V2-09" "a card <li> has touch-none, which would block page scrolling on touch screens"; printf '%s\n' "$V209" | evidence ;;
   *) fail "V2-09" "the check could not run"; printf '%s\n' "$V209" | evidence ;;
 esac
+
+report_scan "V2-14" "no hex colours or Tailwind palette colour classes in src/components or src/App.tsx (tokens only)" \
+  "a hex colour or a Tailwind palette colour was found — use the tokens in src/index.css (CLAUDE.md, Visual Direction)" \
+  "$COMPONENTS_AND_APP" '#[0-9a-fA-F]{3,8}\b|\b(?:[a-z-]+:)*(?:bg|text|border|outline|ring|placeholder|from|to|via|fill|stroke|decoration|accent|caret|divide|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b|\b(?:[a-z-]+:)*(?:bg|text|border)-(?:white|black)\b' ''
 
 RETIRED_SCRIPTS="scripts/verify-phase0.sh scripts/verify-phase2.sh"
 if [ -z "$BASE" ]; then
@@ -365,6 +375,8 @@ echo "=== ต้องตรวจเอง (ไม่ได้ตรวจอ�
 echo "  M-14 contrast ของ placeholder ใน light และ dark (AC-17.1: เทสต์ตรวจได้แค่ class ตัวเลขจริงต้องวัดในเบราว์เซอร์)"
 echo "  M-15 ข้อมูล schemaVersion 3 → เห็นข้อความ ช่องเพิ่มงาน disabled อ่านออกทั้ง light/dark"
 echo "  M-16 localStorage ของ MVP1 จริง → งานครบ ลำดับเดิม → กด 1 ครั้ง → refresh ยังครบ"
+echo "  M-17–M-21 โหมดตรวจลำดับ: 375px, คีย์บอร์ดล้วน, เมาส์ 6 งาน + reload, light/dark ที่ 375px และ 1280×900, VoiceOver (รอ PO)"
+echo "  M-02 ซ้ำ: Escape ของการลากด้วยคีย์บอร์ดยังยกเลิกได้หลังเปิด-ปิดโหมดตรวจลำดับ"
 echo "  ⚠ V2-10 และ V2-11 ที่ผ่าน ไม่ได้แปลว่า M-10 (console สะอาด) ผ่าน — ต้องเปิด DevTools ดูเอง"
 echo "  ⚠ ทุกครั้งที่แก้ส่วนลากวาง ต้องตรวจ M-01, M-02, M-03, M-11 ใหม่ (ดู docs/MANUAL_QA.md)"
 
