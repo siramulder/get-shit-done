@@ -4,7 +4,7 @@ import userEvent, { type UserEvent } from '@testing-library/user-event'
 import App from './App'
 import { labels } from './lib/labels'
 import { STORAGE_KEY } from './lib/storage'
-import type { Task } from './types/task'
+import type { Store, Task } from './types/task'
 
 const local = (day: number, hour: number, minute = 0) => new Date(2026, 9, day, hour, minute)
 
@@ -397,5 +397,237 @@ describe('v2 store and newer-version data', () => {
     expect(screen.queryByText(labels.newerVersion)).not.toBeInTheDocument()
     expect(addTaskBox()).toBeEnabled()
     expect(button(labels.addButton)).toBeEnabled()
+  })
+})
+
+describe('review mode (slice 1)', () => {
+  const dialog = () => screen.getByRole('dialog')
+  const reviewButton = () => screen.getByRole('button', { name: labels.review.button })
+  const storedTodo = () =>
+    (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{"schemaVersion":2,"tasks":[]}') as Store).tasks
+      .filter((t) => t.status === 'todo')
+      .sort((a, b) => a.order - b.order)
+      .map((t) => t.title)
+  const card = (title: string) => within(dialog()).getByRole('button', { name: title })
+  function expectPair(upper: string, lower: string, k: number, total: number) {
+    expect(card(upper)).toHaveAttribute('data-position', 'upper')
+    expect(card(lower)).toHaveAttribute('data-position', 'lower')
+    expect(within(dialog()).getByText(labels.review.counter(k, total))).toBeInTheDocument()
+  }
+  async function openWith(user: UserEvent, ...titles: string[]) {
+    await addTasks(user, ...titles)
+    await user.click(reviewButton())
+  }
+
+  it.each<[number, boolean]>([
+    [0, true],
+    [1, true],
+    [2, false],
+  ])('AC-6.1 with %i todo tasks the review button disabled=%s and explains why', async (count, disabled) => {
+    const { user } = setup()
+    await addTasks(user, ...['A', 'B'].slice(0, count))
+    if (disabled) {
+      expect(reviewButton()).toBeDisabled()
+      expect(reviewButton()).toHaveAccessibleDescription(labels.review.needTwo)
+    } else {
+      expect(reviewButton()).toBeEnabled()
+      expect(reviewButton()).not.toHaveAccessibleDescription(labels.review.needTwo)
+    }
+  })
+
+  it('AC-6.2 the mode replaces the page: dialog with question, two cards, counter, skip, close — no text box, list or done section', async () => {
+    const { user } = setup()
+    await addTasks(user, 'A', 'B', 'C', 'X')
+    await user.click(button(labels.complete('X')))
+    expect(screen.getByRole('heading', { name: labels.doneHeading })).toBeInTheDocument()
+    await user.click(reviewButton())
+
+    expect(dialog()).toHaveAttribute('aria-modal', 'true')
+    expect(dialog()).toHaveAccessibleName(labels.review.question)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: labels.doneHeading })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: labels.todoHeading })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: labels.review.question })).toBeInTheDocument()
+    expectPair('B', 'C', 1, 2)
+    expect(within(dialog()).getAllByRole('button').map((b) => b.dataset.position ?? b.textContent)).toEqual([
+      'upper',
+      'lower',
+      labels.review.skip,
+      labels.review.close,
+    ])
+  })
+
+  it.each<[string, (user: UserEvent) => Promise<void>]>([
+    ['the close button', async (user) => user.click(screen.getByRole('button', { name: labels.review.close }))],
+    ['Escape', async (user) => user.keyboard('{Escape}')],
+    [
+      'close on the summary',
+      async (user) => {
+        await user.click(card('B'))
+        await user.click(screen.getByRole('button', { name: labels.review.close }))
+      },
+    ],
+  ])('AC-6.4 focus goes to the upper card on open and back to the review button after closing with %s', async (_how, closeIt) => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B')
+    expect(card('A')).toHaveFocus()
+    await closeIt(user)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(reviewButton()).toHaveFocus()
+  })
+
+  it('AC-7.1 A, B, C, D start with C on top, D below, "คำถาม 1 จาก 3"', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    expectPair('C', 'D', 1, 3)
+  })
+
+  it('AC-7.2 picking the lower card D stores A, B, D, C at once and asks B vs D next', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await user.click(card('D'))
+    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
+    expectPair('B', 'D', 2, 3)
+  })
+
+  it.each<[string, () => HTMLElement]>([
+    ['the upper card C', () => card('C')],
+    ['skip', () => screen.getByRole('button', { name: labels.review.skip })],
+  ])('AC-7.3 choosing %s keeps the order and asks B vs C next', async (_label, target) => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await user.click(target())
+    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
+    expectPair('B', 'C', 2, 3)
+  })
+
+  it('AC-7.4 picking D every time ends with D, A, B, C in state and storage', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    for (let i = 0; i < 3; i++) await user.click(card('D'))
+    expect(storedTodo()).toEqual(['D', 'A', 'B', 'C'])
+    await user.click(screen.getByRole('button', { name: labels.review.close }))
+    expect(todoTitles()).toEqual(['D', 'A', 'B', 'C'])
+  })
+
+  it('AC-7.5 after the last question the summary names the top task with "again" and "close" and no cards', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    for (let i = 0; i < 3; i++) await user.click(card('D'))
+    expect(within(dialog()).getByText(labels.review.topTask('D'))).toBeInTheDocument()
+    expect(within(dialog()).getByRole('button', { name: labels.review.again })).toBeInTheDocument()
+    expect(within(dialog()).getByRole('button', { name: labels.review.close })).toBeInTheDocument()
+    expect(within(dialog()).queryByRole('button', { name: 'D' })).not.toBeInTheDocument()
+    expect(dialog().querySelector('[data-position]')).toBeNull()
+  })
+
+  it('AC-7.6 "again" starts over from the bottom pair of the new order with the counter at 1', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    for (let i = 0; i < 3; i++) await user.click(card('D'))
+    await user.click(screen.getByRole('button', { name: labels.review.again }))
+    expectPair('B', 'C', 1, 3)
+    expect(card('B')).toHaveFocus()
+  })
+
+  it.each<[string, (user: UserEvent) => Promise<void>]>([
+    ['close', async (user) => user.click(screen.getByRole('button', { name: labels.review.close }))],
+    ['Escape', async (user) => user.keyboard('{Escape}')],
+    [
+      'Escape after clicking the header title',
+      async (user) => {
+        await user.click(screen.getByRole('heading', { name: labels.appTitle }))
+        await user.keyboard('{Escape}')
+      },
+    ],
+  ])('AC-8.1 after 2 answers (1 swap) %s closes at once, without a confirm, showing the new order', async (_how, closeIt) => {
+    const confirmSpy = vi.spyOn(window, 'confirm')
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await user.click(card('D'))
+    await user.click(card('B'))
+    await closeIt(user)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(todoTitles()).toEqual(['A', 'B', 'D', 'C'])
+  })
+
+  it('AC-10.1 only the four mode controls can take focus while the mode is open', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C')
+    const focusable = [...document.querySelectorAll<HTMLElement>('button, input, a[href], select, textarea, [tabindex]')].filter(
+      (el) => !el.hasAttribute('disabled') && el.tabIndex >= 0,
+    )
+    expect(focusable).toEqual([card('B'), card('C'), button(labels.review.skip), button(labels.review.close)])
+  })
+
+  it.each([['{Enter}'], [' ']])('AC-10.2 %s on the focused lower card works like clicking it', async (key) => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await user.tab()
+    expect(card('D')).toHaveFocus()
+    await user.keyboard(key)
+    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
+    expectPair('B', 'D', 2, 3)
+  })
+
+  it('AC-10.3 the polite live region announces each new pair and then the summary', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C')
+    const live = () => dialog().querySelector('[aria-live="polite"]')
+    expect(live()).toHaveTextContent(labels.review.announcePair('B', 'C', 1, 2))
+    await user.click(card('C'))
+    expect(live()).toHaveTextContent(labels.review.announcePair('A', 'C', 2, 2))
+    await user.click(card('A'))
+    expect(live()).toHaveTextContent(labels.review.announceDone('A'))
+  })
+
+  it('AC-F1.1 exactly two todo tasks ask one question and then show the summary', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B')
+    expectPair('A', 'B', 1, 1)
+    await user.click(screen.getByRole('button', { name: labels.review.skip }))
+    expect(within(dialog()).getByText(labels.review.topTask('A'))).toBeInTheDocument()
+  })
+
+  it('AC-F1.3 after a swap, a fresh render opens on the normal list with the swap kept', async () => {
+    const first = setup()
+    await openWith(first.user, 'A', 'B', 'C')
+    await first.user.click(card('C'))
+    first.unmount()
+    setup()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(todoTitles()).toEqual(['A', 'C', 'B'])
+  })
+
+  it('S1-09 a task finished today is never a card during the round', async () => {
+    const { user } = setup()
+    await addTasks(user, 'A', 'X', 'B', 'C')
+    await user.click(button(labels.complete('X')))
+    await user.click(reviewButton())
+    for (let i = 0; i < 2; i++) {
+      expect(within(dialog()).queryByRole('button', { name: 'X' })).not.toBeInTheDocument()
+      await user.click(card(i === 0 ? 'C' : 'A'))
+    }
+    expect(within(dialog()).queryByRole('button', { name: 'X' })).not.toBeInTheDocument()
+    expect(storedTodo()).toEqual(['A', 'C', 'B'])
+  })
+
+  it('S1-10 the two cards share one className through a whole round', async () => {
+    const { user } = setup()
+    await openWith(user, 'A', 'B', 'C')
+    for (const pick of ['C', 'A']) {
+      const [upper, lower] = within(dialog()).getAllByRole('button').slice(0, 2)
+      expect(upper.className).toBe(lower.className)
+      await user.click(card(pick))
+    }
+  })
+
+  it('S1-11 data from a newer version shows no review button', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: 3, tasks: [] }))
+    setup()
+    expect(screen.getByText(labels.newerVersion)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: labels.review.button })).not.toBeInTheDocument()
   })
 })

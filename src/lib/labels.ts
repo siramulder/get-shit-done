@@ -25,4 +25,20 @@ export const labels = {
       `วาง "${title}" ที่ตำแหน่ง ${position} จาก ${total}`,
     cancelled: (title: string) => `ยกเลิกการย้าย "${title}"`,
   },
+  review: {
+    button: 'ตรวจลำดับ',
+    needTwo: 'ต้องมีงานอย่างน้อย 2 ชิ้นจึงจะตรวจลำดับได้',
+    question: 'อันไหนทำก่อน?',
+    upper: 'บน',
+    lower: 'ล่าง',
+    counter: (k: number, total: number) => `คำถาม ${k} จาก ${total}`,
+    skip: 'ข้าม',
+    close: 'ปิด',
+    again: 'อีกรอบ',
+    doneTitle: 'ตรวจลำดับครบแล้ว',
+    topTask: (title: string) => `งานบนสุดตอนนี้: ${title}`,
+    announcePair: (upper: string, lower: string, k: number, total: number) =>
+      `อันไหนทำก่อน? บน: ${upper} ล่าง: ${lower} คำถาม ${k} จาก ${total}`,
+    announceDone: (title: string) => `ตรวจลำดับครบแล้ว งานบนสุดตอนนี้: ${title}`,
+  },
 }
