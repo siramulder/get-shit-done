@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-10-25 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 deploy แล้ว · visual direction R + slice 1 commit แล้ว (ยังไม่ push)
+อัปเดต: 2026-10-26 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 และ slice 1 (+ visual direction R) deploy แล้ว · ถัดไป slice 2
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -12,8 +12,8 @@
 |---|---|
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" โดยเฉพาะ M-05 (สัมผัสบนเครื่องจริง) และ M-09 (VoiceOver) |
-| Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
-| v2 | slice 0 เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) slice 1 ยังไม่เริ่ม |
+| Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
+| v2 | slice 0 และ slice 1 เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · ถัดไป slice 2 (US-15 + US-9 undo/redo) |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -54,7 +54,7 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 | Slice | Story | AC | สถานะ |
 |---|---|---|---|
 | 0 | US-16 migration + ปลด scope guard + US-17 contrast placeholder | AC-16.1 ถึง 16.4, AC-17.1, S0-01 ถึง S0-10 (+S0-05b) | เสร็จ `f335a93` (docs), `878b6be` (feat), `ae0df0d` (fix), `c68af21` (chore) · deploy 2026-10-20 |
-| 1 | US-6, 7, 8, 10 ตรวจลำดับ | AC-6.1, 6.2, 6.4, AC-7.1–7.6, AC-8.1, AC-10.1–10.3, AC-F1.1, F1.3, S1-01–S1-11 | เสร็จ (commit แล้ว ยังไม่ push — รอ PO ลองใช้) ดูสรุปด้านล่าง |
+| 1 | US-6, 7, 8, 10 ตรวจลำดับ | AC-6.1, 6.2, 6.4, AC-7.1–7.6, AC-8.1, AC-10.1–10.3, AC-F1.1, F1.3, S1-01–S1-11 | เสร็จ `77b6bb5`, `d57b686` (R), `c901af9` (feat), `0ee347a` (chore) · deploy 2026-10-25 |
 | 2 | US-15 + US-9 undo/redo | AC-15.x, AC-9.1, 9.2 | ยังไม่เริ่ม |
 | 3 | US-11, 12, 13 deadline | AC-11.x, AC-12.x, AC-13.x และ AC-6.3 | ยังไม่เริ่ม |
 | 4 | US-14 แก้ชื่อ inline | AC-14.x | ยังไม่เริ่ม |
@@ -99,8 +99,8 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 |---|---|
 | `77b6bb5` | docs: add visual direction R to CLAUDE.md (+ token header-line) |
 | `d57b686` | style: apply visual direction R — token ใน `src/index.css` (`@theme static`), Chakra Petch, header ดำ, ขอบ 2px, ไม่มีเงา · AC-17.1 ตรวจ `placeholder:text-muted` แทน class palette (ID คงเดิม) |
-| feat | feat(v2): pairwise review mode — `src/lib/review.ts` (pure) + `ReviewMode` + ปุ่ม "ตรวจลำดับ" ใน App |
-| chore | chore: verify-v2 slice 1 checks and self-test (+ เอกสารนี้, MANUAL_QA M-17–M-21) |
+| `c901af9` | feat(v2): pairwise review mode — `src/lib/review.ts` (pure) + `ReviewMode` + ปุ่ม "ตรวจลำดับ" ใน App |
+| `0ee347a` | chore: verify-v2 slice 1 checks and self-test (+ เอกสารนี้, MANUAL_QA M-17–M-21) |
 
 - **contrast R (วัดใน browser pane):** ทุกคู่ที่ต้องผ่าน ≥ 4.5:1 ทั้งสองโหมด ต่ำสุด on-neon/hot 5.66 (ตารางเต็มใน MANUAL_QA)
 - **เทสต์:** 256 ข้อ (เดิม 212 + slice 1 44) · ลองทำโค้ดพัง 5 แบบ: (ก) ไม่ swap → แดง 16 ข้อ รวม AC-7.2, 7.4, S1-02 · (ข) เริ่มคู่บนสุด → 26 ข้อ รวม AC-7.1, S1-01 · (ค) ไม่คืน focus → AC-6.4 ×3 · (ง) ซ่อนหน้าหลักด้วย CSS → AC-6.2, AC-10.1, AC-8.1 · (จ) การ์ดล่างคนละสี → S1-10 ×2
@@ -147,6 +147,11 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 
 - MANUAL_QA ของ MVP1 ยังรอ PO กรอก M-05 และ M-09 · M-14 (รอบ AC-17.1), M-15, M-16 รอ PO ยืนยัน
 - M-16 ผ่านบนเครื่องจริงของ PO แล้ว (2026-10-20) → push และ deploy slice 0 แล้ว
+- M-21 (VoiceOver ในโหมดตรวจลำดับ) รอ PO · slice 1 push ตามคำสั่ง PO 2026-10-25 โดย M-21 ยังไม่ได้ตรวจ
+- ปุ่ม ↑↓ disabled 1.47:1 (light) / 1.73:1 (dark) หลัง R — WCAG ยกเว้น control ที่ disabled จดไว้ไม่แก้
+- `README.md` ยังเป็นเนื้อหา MVP1 และชี้ไป verify-phase2.sh
+- slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)
+- slice 2: ปุ่ม "เลิกทำ" ในโหมดตรวจลำดับ (AC-9.1) ต้องคืนคู่และตัวนับ — `ReviewState` เป็นค่า immutable ต่อคำตอบ เก็บเป็น stack ได้
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
 - Export/Import JSON ตัดออกจาก v2 เพื่อรักษาขนาด เป็น P1 ถัดไป (`Store` มี `schemaVersion` รองรับแล้ว)
 

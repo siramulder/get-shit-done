@@ -20,7 +20,8 @@ MVP1 shipped. Current work: **v2 "ตัดสินใจทีละคู่"
 - `npx vitest --run --sequence.shuffle` — shuffled run; tests must not depend on order
 - `npm run build` — production build; its `tsc -b` step is what enforces type-level tests
 - `npm run lint` — lint
-- `bash scripts/verify-v2.sh [--pre-commit]` — v2 verification (report only)
+- `bash scripts/verify-v2.sh [--pre-commit] [--slice N]` — v2 verification (report only); checks test ids of slices 0..N, default = latest slice
+- `bash scripts/verify-v2.selftest.sh` — proves verify-v2 catches planted defects (one per check, ~10 min)
 - `bash scripts/verify-phase0.sh`, `bash scripts/verify-phase2.sh` — retired phase snapshots, see Scope guards
 
 ## Project Structure
@@ -28,8 +29,8 @@ MVP1 shipped. Current work: **v2 "ตัดสินใจทีละคู่"
 src/
   types/        # Task, Store
   hooks/        # useTasks — sole owner of task state, persistence, and undo history
-  lib/          # storage.ts (+ migration), date.ts, labels.ts (all UI text)
-  components/   # presentational UI: TaskInput, TaskList, TaskItem, DoneSection, EmptyState,
+  lib/          # storage.ts (+ migration), date.ts, labels.ts (all UI text), review.ts (pure pairwise-review logic)
+  components/   # presentational UI: TaskInput, TaskList, TaskItem, DoneSection, EmptyState, ReviewMode,
                 #   plus handleDragEnd.ts, cardPointerSensor.ts, listCollisionDetection.ts, focusNeighbor.ts
   test/         # setup.ts, smoke test
   App.tsx       # the only caller of useTasks
@@ -78,6 +79,7 @@ If a task seems to need any of these, stop and ask instead of implementing.
 - Drag & drop: a mouse drag can start anywhere on a card — `listeners` go on the `<li>`, and `CardPointerSensor` refuses to start from the card's buttons (↑ ↓ ✓ ✕ and any control added later). `attributes` and `setActivatorNodeRef` stay on the ⠿ handle, so keyboard dragging and screen-reader semantics live there. Sensors: `CardPointerSensor { distance: 5 }` + KeyboardSensor with `sortableKeyboardCoordinates`. Touch/mobile dragging is not supported. A row being edited inline must not start a drag.
 - Deadline never changes `order`. Any code path that sets or clears `dueDate` leaves every task's `order` untouched.
 - Undo/redo: one history stack in `useTasks`, max 50 steps, session-only (not persisted). Every mutation pushes one entry; every undo/redo writes localStorage like a normal action. Undo of a delete restores the task to its original position. ⌘Z/Ctrl+Z does nothing while focus is in a text field.
+- Review mode: the ordering logic is pure functions in `src/lib/review.ts` (no React, storage, dates or `useTasks`); a "lower" answer is applied with the existing `moveTask(id, 'up')` — no new mutation. `App` renders `ReviewMode` instead of the page (TaskInput, lists and DoneSection are not rendered, not just hidden). Escape and the focus trap are `onKeyDown` on the mode's outermost element (header + dialog, `tabIndex={-1}`); never add a `document` listener, it would steal Escape from keyboard dragging. Review state is in memory only.
 - Delete is immediate: no confirm dialog, never `window.confirm`.
 - UI text in Thai unless told otherwise.
 
@@ -88,12 +90,14 @@ If a task seems to need any of these, stop and ask instead of implementing.
   - hot (pink) = time that needs attention: overdue badge fill, the dot in the "today" badge
   - everything else is ink, paper, or muted gray; done tasks are muted gray + strikethrough
 - Neon is only ever a fill. Text on neon is always ink (#0a0a0a) in both themes. Neon text appears only on ink backgrounds (the header title, the skip button). Never neon text on paper.
+  - "Ink background" means the `header` token (black in both themes), not `bg-ink`: `ink` turns near-white in dark mode, where neon on it reads at 1.09:1. The skip button is `bg-header text-neon border-2 border-ink`.
+  - Focus rings are ink, except controls on the black header bar, which use a neon ring (ink is invisible there).
 - Both review cards always use the same color, so color never favors one answer.
 - No glow, no gradients, no shadows. Borders are 2px ink. Radius: rows 12px, review cards 20px, badges 6px, pills 999px.
 - All colors come from tokens in src/index.css. Components never contain hex values or Tailwind palette colors (gray-500 etc.).
 - Font: Chakra Petch 500/600/700 (Google Fonts link in index.html), fallback system-ui, sans-serif; line-height 1.55.
 
-Tokens (declared in `src/index.css` with `@theme`; dark values switch on `prefers-color-scheme`; use as `bg-paper`, `text-ink`, `bg-neon` …):
+Tokens (declared in `src/index.css` with `@theme static` — `static` keeps tokens no class uses yet, e.g. `hot`; dark values switch on `prefers-color-scheme`; use as `bg-paper`, `text-ink`, `bg-neon` … with no `dark:` variants). `scripts/verify-v2.sh` V2-14 fails on any hex or Tailwind palette colour in `src/components` or `src/App.tsx`:
 
 | token | light | dark | used for |
 |---|---|---|---|
@@ -125,6 +129,6 @@ Tokens (declared in `src/index.css` with `@theme`; dark values switch on `prefer
 ## Workflow
 1. Work one slice at a time, in the order in `docs/DEV_PLAN.md`. Propose a plan first (Plan Mode) and wait for approval.
 2. Write tests first from the AC in `docs/PRD-v2.md`, see them fail, then implement.
-3. Before saying a slice is done: `npm test -- --run`, the shuffled run ×3, `npm run build`, `npm run lint`, and `scripts/verify-v2.sh`.
+3. Before saying a slice is done: `npm test -- --run`, the shuffled run ×3, `npm run build`, `npm run lint`, and `scripts/verify-v2.sh`. When a slice starts, add its `SLICE_<n>` id list to verify-v2 and bump `LATEST_SLICE`.
 4. Keep changes scoped to the current slice; one slice = one commit (plus a separate commit for verify-script changes).
 5. Summarize what changed and anything not yet meeting the AC, and update `docs/DEV_PLAN.md`.
