@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-10-26 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 และ slice 1 (+ visual direction R) deploy แล้ว · ถัดไป slice 2
+อัปเดต: 2026-10-27 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 และ slice 1 (+ visual direction R) deploy แล้ว · แก้ hold กันกดซ้ำในโหมดตรวจลำดับ commit แล้ว (ยังไม่ push) · ถัดไป slice 2
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -121,6 +121,20 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 - `min-h` ชนะ `max-h` ใน CSS → dialog สูง 740px ที่ 1280×900 ตอนแรก แก้เป็น `min-h-[min(calc(100dvh-10rem),44rem)]` ได้ 704px
 - oxlint เตือน setState ใน effect (กฎ "todo < 2 ปิดโหมดเอง") → เปลี่ยนเป็นค่าที่คำนวณระหว่าง render
 - shuffle รอบหนึ่ง fail 4 ข้อด้วยเวลา ~900 วินาที/ข้อ ขณะเครื่องพักระหว่างรันพร้อม self-test — รันซ้ำบนเครื่องว่าง (ดูผล gate สุดท้าย)
+
+### แก้ pain point โหมดตรวจลำดับ — ค้างคู่ที่ตอบแล้ว 800 ms (2026-10-27)
+
+PO พบว่าหลังตอบคู่หนึ่ง คู่ถัดไปมาที่ตำแหน่งเดิมทันที การแตะซ้ำจึงตอบคู่ใหม่โดยไม่ตั้งใจ
+
+| Commit | เนื้อหา |
+|---|---|
+| `90c5167` | fix(v2): hold the answered pair before showing the next one — `ANSWER_HOLD_MS = 800` ใน `review.ts`, hold state ใน `ReviewMode` (✓ + opacity-50 + aria-disabled), เทสต์ S1-12–S1-15, MANUAL_QA M-22 |
+| (commit ถัดจาก `90c5167`) | chore: verify-v2 adds hold tests to slice 1 (+ CLAUDE.md, DEV_PLAN นี้) |
+
+- **การตัดสินใจ (PO):** ค้างคู่เดิมพร้อมเครื่องหมาย (ไม่ใช่แค่ล็อกเงียบ ๆ) · 800 ms · "ข้าม" ก็ค้างเหมือนกัน · ปิด/Escape ใช้ได้เสมอและยกเลิก timer · การสลับใน state/localStorage ยังทันที (AC-7.2) · live region เงียบระหว่างค้าง แล้วประกาศคู่ใหม่ตามปกติ · focus อยู่การ์ดที่กดตลอด hold หน้าสรุป → "อีกรอบ" หลัง hold
+- **เทสต์:** 265 ข้อ (+9) · แก้เทสต์เดิม ID คง: AC-10.2 (ReviewMode) แยก Enter/Space เป็นคนละเทสต์ เพราะกดสองครั้งติดกันตอนนี้ตั้งใจให้ครั้งที่สองไม่มีผล · S1-10 เพิ่ม assertion หลัง hold · เทสต์ App ที่ตอบหลายคู่ใช้ fake timers + settle 800 ms (assertion เดิมไม่เปลี่ยน)
+- **ลองทำโค้ดพัง 4 แบบ:** (ก) ไม่เช็ก hold → S1-12, S1-13 ×2 แดง · (ข) hold = 0 → S1-12, S1-13 ×2, S1-14, S1-15 แดง · (ค) ใช้ `disabled` แทน aria-disabled → S1-12, S1-13, S1-14 แดง (S1-15 จับไม่ได้ เพราะ jsdom ไม่ blur ปุ่มที่ถูก disabled ต่างจากเบราว์เซอร์) · (ง) ไม่ clearTimeout ตอนปิด → S1-14 ×2 แดง หลังแก้ assertion ให้เช็ก timer ทันทีหลังปิด (รอบแรกจับไม่ได้เพราะเช็กหลัง unmount ซึ่ง cleanup ล้างให้อยู่แล้ว)
+- **สิ่งที่เจอ:** @testing-library/react เดินนาฬิกาปลอมให้เฉพาะของ jest → user-event ค้างกับ fake timers ของ vitest แก้ด้วย `vi.stubGlobal('jest', …)` ใน `src/test/setup.ts` · fake `setImmediate` ทำให้ React ไม่ render (scheduler ใช้ setImmediate ใน Node) → fake เฉพาะ setTimeout/clearTimeout/Date · browser pane: ดับเบิลคลิกห่าง 4 ms และ Enter ×4 ใน 16 ms → สลับครั้งเดียวทั้งคู่ (M-22)
 
 ### การตัดสินใจของ v2
 
