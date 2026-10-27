@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-10-27 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0 และ slice 1 (+ visual direction R) deploy แล้ว · แก้ hold กันกดซ้ำในโหมดตรวจลำดับ commit แล้ว (ยังไม่ push) · ถัดไป slice 2
+อัปเดต: 2026-10-27 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R) และ hold กันกดซ้ำ deploy แล้ว · ถัดไป slice 2
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -12,8 +12,8 @@
 |---|---|
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" โดยเฉพาะ M-05 (สัมผัสบนเครื่องจริง) และ M-09 (VoiceOver) |
-| Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
-| v2 | slice 0 และ slice 1 เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · ถัดไป slice 2 (US-15 + US-9 undo/redo) |
+| Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
+| v2 | slice 0, slice 1 และ hold กันกดซ้ำ เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · ถัดไป slice 2 (US-15 + US-9 undo/redo) · โหมดตรวจลำดับยังไม่มี undo ในตัว แต่ hold 800 ms ลดการตอบผิดจากกดซ้ำแล้ว |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -129,7 +129,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 | Commit | เนื้อหา |
 |---|---|
 | `90c5167` | fix(v2): hold the answered pair before showing the next one — `ANSWER_HOLD_MS = 800` ใน `review.ts`, hold state ใน `ReviewMode` (✓ + opacity-50 + aria-disabled), เทสต์ S1-12–S1-15, MANUAL_QA M-22 |
-| (commit ถัดจาก `90c5167`) | chore: verify-v2 adds hold tests to slice 1 (+ CLAUDE.md, DEV_PLAN นี้) |
+| `7772f56` | chore: verify-v2 adds hold tests to slice 1 (+ CLAUDE.md, DEV_PLAN นี้) · push + deploy 2026-10-27 |
 
 - **การตัดสินใจ (PO):** ค้างคู่เดิมพร้อมเครื่องหมาย (ไม่ใช่แค่ล็อกเงียบ ๆ) · 800 ms · "ข้าม" ก็ค้างเหมือนกัน · ปิด/Escape ใช้ได้เสมอและยกเลิก timer · การสลับใน state/localStorage ยังทันที (AC-7.2) · live region เงียบระหว่างค้าง แล้วประกาศคู่ใหม่ตามปกติ · focus อยู่การ์ดที่กดตลอด hold หน้าสรุป → "อีกรอบ" หลัง hold
 - **เทสต์:** 265 ข้อ (+9) · แก้เทสต์เดิม ID คง: AC-10.2 (ReviewMode) แยก Enter/Space เป็นคนละเทสต์ เพราะกดสองครั้งติดกันตอนนี้ตั้งใจให้ครั้งที่สองไม่มีผล · S1-10 เพิ่ม assertion หลัง hold · เทสต์ App ที่ตอบหลายคู่ใช้ fake timers + settle 800 ms (assertion เดิมไม่เปลี่ยน)
@@ -161,7 +161,8 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 
 - MANUAL_QA ของ MVP1 ยังรอ PO กรอก M-05 และ M-09 · M-14 (รอบ AC-17.1), M-15, M-16 รอ PO ยืนยัน
 - M-16 ผ่านบนเครื่องจริงของ PO แล้ว (2026-10-20) → push และ deploy slice 0 แล้ว
-- M-21 (VoiceOver ในโหมดตรวจลำดับ) รอ PO · slice 1 push ตามคำสั่ง PO 2026-10-25 โดย M-21 ยังไม่ได้ตรวจ
+- M-21 (VoiceOver ในโหมดตรวจลำดับ) รอ PO · slice 1 push ตามคำสั่ง PO 2026-10-25 โดย M-21 ยังไม่ได้ตรวจ · M-22 (hold) ผ่านใน browser pane แต่ยังไม่ได้ลองแตะซ้ำบนโทรศัพท์จริง รอ PO
+- ตอนรีวิว/ตรวจโหมดตรวจลำดับด้วย VoiceOver (M-21): ระหว่าง hold การ์ดเป็น aria-disabled และ live region เงียบ 800 ms ก่อนประกาศคู่ใหม่ — ถ้า PO พบว่า screen reader ควรได้ยิน "เลือก … แล้ว" ทันที ให้เพิ่ม label ใน slice 2
 - ปุ่ม ↑↓ disabled 1.47:1 (light) / 1.73:1 (dark) หลัง R — WCAG ยกเว้น control ที่ disabled จดไว้ไม่แก้
 - `README.md` ยังเป็นเนื้อหา MVP1 และชี้ไป verify-phase2.sh
 - slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)

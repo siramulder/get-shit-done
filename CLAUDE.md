@@ -118,7 +118,7 @@ Tokens (declared in `src/index.css` with `@theme static` — `static` keeps toke
 - Colocate `*.test.ts(x)` with the file under test; query by role + accessible name taken from `labels`.
 - Tests run with `TZ=Asia/Bangkok` (`vite.config.ts` → `test.env`); for date logic use `vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime`.
 - No `.skip` / `.only` / `.todo`. Never weaken a test to make it pass — fix the code or ask.
-- jsdom has no layout: mouse dragging and keyboard reordering cannot be proven by tests. Never claim them as tested; list them for manual browser checks in `docs/MANUAL_QA.md`.
+- jsdom has no layout: mouse dragging and keyboard reordering cannot be proven by tests. Never claim them as tested; list them for manual browser checks in `docs/MANUAL_QA.md`. jsdom also does not blur a focused button when it becomes `disabled`, so focus-related assertions cannot catch a `disabled` vs `aria-disabled` mix-up — assert the attribute instead.
 - A test that starts a pointer drag must end it and then wait ~60ms: dnd-kit keeps a click-swallowing listener on `document` for 50ms, which can eat clicks in the next test.
 - Tests that need fake `setTimeout` (review-mode hold): use `vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })` — never fake `setImmediate` (React's scheduler uses it in Node and rendering stalls) — plus `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })`, and advance inside `act`. `src/test/setup.ts` stubs a `jest` global so @testing-library/react advances vitest's clock after each event; without it user-event hangs.
 - MVP1 tests (P1-xx, P2-xx) must keep passing through v2. If one legitimately no longer applies, stop and ask before changing it.
@@ -131,5 +131,5 @@ Tokens (declared in `src/index.css` with `@theme static` — `static` keeps toke
 1. Work one slice at a time, in the order in `docs/DEV_PLAN.md`. Propose a plan first (Plan Mode) and wait for approval.
 2. Write tests first from the AC in `docs/PRD-v2.md`, see them fail, then implement.
 3. Before saying a slice is done: `npm test -- --run`, the shuffled run ×3, `npm run build`, `npm run lint`, and `scripts/verify-v2.sh`. When a slice starts, add its `SLICE_<n>` id list to verify-v2 and bump `LATEST_SLICE`.
-4. Keep changes scoped to the current slice; one slice = one commit (plus a separate commit for verify-script changes).
+4. Keep changes scoped to the current slice; one slice = one commit (plus a separate commit for verify-script changes). A fix to a shipped slice gets a `fix(v2):` commit and its own test ids appended to that slice's `SLICE_<n>` list.
 5. Summarize what changed and anything not yet meeting the AC, and update `docs/DEV_PLAN.md`.
