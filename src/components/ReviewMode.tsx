@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { labels } from '../lib/labels'
-import { currentPair, questionNumber, totalQuestions, type Answer, type ReviewState } from '../lib/review'
+import { ANSWER_HOLD_MS, currentPair, questionNumber, totalQuestions, type Answer, type ReviewState } from '../lib/review'
 import type { Task } from '../types/task'
 
 type Props = {
@@ -13,25 +13,51 @@ type Props = {
 
 // One class for both cards, so colour can never favour an answer.
 const cardClass =
-  'flex min-h-28 flex-1 cursor-pointer flex-col items-start justify-center gap-1 rounded-[20px] border-[2.5px] border-ink bg-neon px-5 py-4 text-left text-on-neon focus-visible:outline-4 focus-visible:outline-offset-[3px] focus-visible:outline-ink'
-const pillButton = 'h-11 cursor-pointer rounded-full px-5 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
+  'relative flex min-h-28 flex-1 flex-col items-start justify-center gap-1 rounded-[20px] border-[2.5px] border-ink bg-neon px-5 py-4 text-left text-on-neon focus-visible:outline-4 focus-visible:outline-offset-[3px] focus-visible:outline-ink'
+const pillButton = 'h-11 rounded-full px-5 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
+
+// While an answer is held the pair stays on screen, the chosen card is marked and the other one dims.
+type Held = { state: ReviewState; choice: Answer }
 
 export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const upperRef = useRef<HTMLButtonElement>(null)
   const againRef = useRef<HTMLButtonElement>(null)
   const headingId = useId()
-  const pair = currentPair(state)
-  const finished = pair === null
+  // After an answer the answered pair is held for ANSWER_HOLD_MS so a repeated tap or a held key
+  // cannot answer the next pair by accident. The swap itself is applied by the parent at once.
+  const [held, setHeld] = useState<Held | null>(null)
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const shown = held?.state ?? state
+  const pair = currentPair(shown)
+  const finished = currentPair(state) === null
   const titleOf = (id: string) => tasks.find((t) => t.id === id)?.title ?? ''
   const topTitle = tasks[0]?.title ?? ''
 
   // Cards keep their element between pairs, so focus stays on the card that was pressed.
-  // Only entering a round (open, "again") or the summary moves focus.
+  // Only entering a round (open, "again") moves focus to the upper card …
   useEffect(() => {
-    if (finished) againRef.current?.focus()
-    else upperRef.current?.focus()
+    if (!finished) upperRef.current?.focus()
   }, [finished])
+  // … and the summary moves it to "again", once the hold on the last answer is over.
+  useEffect(() => {
+    if (finished && held === null) againRef.current?.focus()
+  }, [finished, held])
+
+  useEffect(() => () => clearTimeout(holdTimer.current), [])
+
+  function choose(choice: Answer) {
+    if (held !== null) return
+    setHeld({ state, choice })
+    onAnswer(choice)
+    holdTimer.current = setTimeout(() => setHeld(null), ANSWER_HOLD_MS)
+  }
+
+  // Closing always works, even mid-hold.
+  function close() {
+    clearTimeout(holdTimer.current)
+    onClose()
+  }
 
   // Escape and the focus trap live on the outermost element of the mode (header + dialog),
   // so they still work after a click on empty space, and nothing is left on `document`
@@ -39,7 +65,7 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Escape') {
       event.preventDefault()
-      onClose()
+      close()
       return
     }
     if (event.key !== 'Tab' || !rootRef.current) return
@@ -61,8 +87,8 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
     ? labels.review.announcePair(
         titleOf(pair.upperId),
         titleOf(pair.lowerId),
-        questionNumber(state),
-        totalQuestions(state),
+        questionNumber(shown),
+        totalQuestions(shown),
       )
     : labels.review.announceDone(topTitle)
 
@@ -90,15 +116,25 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
               {labels.review.question}
             </h2>
             <div className="flex flex-1 flex-col gap-3">
-              {(['upper', 'lower'] as const).map((position) => (
+              {(['upper', 'lower'] as const).map((position) => {
+                const chosen = held?.choice === position
+                const dimmed = held !== null && !chosen
+                return (
                 <button
                   key={position}
                   ref={position === 'upper' ? upperRef : undefined}
                   type="button"
                   data-position={position}
-                  onClick={() => onAnswer(position)}
-                  className={cardClass}
+                  data-chosen={chosen ? 'true' : undefined}
+                  aria-disabled={held !== null ? 'true' : undefined}
+                  onClick={() => choose(position)}
+                  className={`${cardClass} ${held === null ? 'cursor-pointer' : 'cursor-default'} ${dimmed ? 'opacity-50' : ''}`}
                 >
+                  {chosen && (
+                    <span aria-hidden="true" className="absolute top-3 right-4 text-2xl font-bold">
+                      ✓
+                    </span>
+                  )}
                   <span aria-hidden="true" className="text-sm font-semibold">
                     {labels.review[position]}
                   </span>
@@ -106,23 +142,25 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
                     {titleOf(position === 'upper' ? pair.upperId : pair.lowerId)}
                   </span>
                 </button>
-              ))}
+                )
+              })}
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => onAnswer('skip')}
-                  className={`${pillButton} border-2 border-ink bg-header text-neon`}
+                  aria-disabled={held !== null ? 'true' : undefined}
+                  onClick={() => choose('skip')}
+                  className={`${pillButton} border-2 border-ink bg-header text-neon ${held === null ? 'cursor-pointer' : 'cursor-default'}`}
                 >
                   {labels.review.skip}
                 </button>
-                <button type="button" onClick={onClose} className={`${pillButton} text-ink underline`}>
+                <button type="button" onClick={close} className={`${pillButton} cursor-pointer text-ink underline`}>
                   {labels.review.close}
                 </button>
               </div>
               <p className="font-semibold text-muted">
-                {labels.review.counter(questionNumber(state), totalQuestions(state))}
+                {labels.review.counter(questionNumber(shown), totalQuestions(shown))}
               </p>
             </div>
           </>
@@ -137,11 +175,11 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
                 ref={againRef}
                 type="button"
                 onClick={onRestart}
-                className={`${pillButton} border-2 border-ink bg-neon text-on-neon`}
+                className={`${pillButton} cursor-pointer border-2 border-ink bg-neon text-on-neon`}
               >
                 {labels.review.again}
               </button>
-              <button type="button" onClick={onClose} className={`${pillButton} text-ink underline`}>
+              <button type="button" onClick={close} className={`${pillButton} cursor-pointer text-ink underline`}>
                 {labels.review.close}
               </button>
             </div>

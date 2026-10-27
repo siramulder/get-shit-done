@@ -3,6 +3,9 @@
 
 export type Answer = 'upper' | 'lower' | 'skip'
 
+/** How long ReviewMode keeps showing an answered pair (inputs ignored) before the next pair, so a repeated tap cannot answer twice. */
+export const ANSWER_HOLD_MS = 800
+
 /** `order` = todo ids top to bottom, kept in step with the real list; `index` = position of the upper card, -1 when finished. */
 export type ReviewState = { order: string[]; index: number }
 

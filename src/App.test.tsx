@@ -1,9 +1,10 @@
 import { StrictMode } from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent, { type UserEvent } from '@testing-library/user-event'
 import App from './App'
 import { labels } from './lib/labels'
 import { STORAGE_KEY } from './lib/storage'
+import { ANSWER_HOLD_MS } from './lib/review'
 import type { Store, Task } from './types/task'
 
 const local = (day: number, hour: number, minute = 0) => new Date(2026, 9, day, hour, minute)
@@ -401,6 +402,17 @@ describe('v2 store and newer-version data', () => {
 })
 
 describe('review mode (slice 1)', () => {
+  // Every answer is held for ANSWER_HOLD_MS: run on fake timers and settle after each answer.
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] }))
+  const setupReview = () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    return { user, ...render(<App />) }
+  }
+  const settle = () => act(() => vi.advanceTimersByTime(ANSWER_HOLD_MS))
+  async function pick(user: UserEvent, target: HTMLElement) {
+    await user.click(target)
+    settle()
+  }
   const dialog = () => screen.getByRole('dialog')
   const reviewButton = () => screen.getByRole('button', { name: labels.review.button })
   const storedTodo = () =>
@@ -424,7 +436,7 @@ describe('review mode (slice 1)', () => {
     [1, true],
     [2, false],
   ])('AC-6.1 with %i todo tasks the review button disabled=%s and explains why', async (count, disabled) => {
-    const { user } = setup()
+    const { user } = setupReview()
     await addTasks(user, ...['A', 'B'].slice(0, count))
     if (disabled) {
       expect(reviewButton()).toBeDisabled()
@@ -436,7 +448,7 @@ describe('review mode (slice 1)', () => {
   })
 
   it('AC-6.2 the mode replaces the page: dialog with question, two cards, counter, skip, close — no text box, list or done section', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await addTasks(user, 'A', 'B', 'C', 'X')
     await user.click(button(labels.complete('X')))
     expect(screen.getByRole('heading', { name: labels.doneHeading })).toBeInTheDocument()
@@ -464,12 +476,12 @@ describe('review mode (slice 1)', () => {
     [
       'close on the summary',
       async (user) => {
-        await user.click(card('B'))
+        await pick(user, card('B'))
         await user.click(screen.getByRole('button', { name: labels.review.close }))
       },
     ],
   ])('AC-6.4 focus goes to the upper card on open and back to the review button after closing with %s', async (_how, closeIt) => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B')
     expect(card('A')).toHaveFocus()
     await closeIt(user)
@@ -478,15 +490,15 @@ describe('review mode (slice 1)', () => {
   })
 
   it('AC-7.1 A, B, C, D start with C on top, D below, "คำถาม 1 จาก 3"', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
     expectPair('C', 'D', 1, 3)
   })
 
   it('AC-7.2 picking the lower card D stores A, B, D, C at once and asks B vs D next', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    await user.click(card('D'))
+    await pick(user, card('D'))
     expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
     expectPair('B', 'D', 2, 3)
   })
@@ -495,26 +507,26 @@ describe('review mode (slice 1)', () => {
     ['the upper card C', () => card('C')],
     ['skip', () => screen.getByRole('button', { name: labels.review.skip })],
   ])('AC-7.3 choosing %s keeps the order and asks B vs C next', async (_label, target) => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    await user.click(target())
+    await pick(user, target())
     expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
     expectPair('B', 'C', 2, 3)
   })
 
   it('AC-7.4 picking D every time ends with D, A, B, C in state and storage', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    for (let i = 0; i < 3; i++) await user.click(card('D'))
+    for (let i = 0; i < 3; i++) await pick(user, card('D'))
     expect(storedTodo()).toEqual(['D', 'A', 'B', 'C'])
     await user.click(screen.getByRole('button', { name: labels.review.close }))
     expect(todoTitles()).toEqual(['D', 'A', 'B', 'C'])
   })
 
   it('AC-7.5 after the last question the summary names the top task with "again" and "close" and no cards', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    for (let i = 0; i < 3; i++) await user.click(card('D'))
+    for (let i = 0; i < 3; i++) await pick(user, card('D'))
     expect(within(dialog()).getByText(labels.review.topTask('D'))).toBeInTheDocument()
     expect(within(dialog()).getByRole('button', { name: labels.review.again })).toBeInTheDocument()
     expect(within(dialog()).getByRole('button', { name: labels.review.close })).toBeInTheDocument()
@@ -523,9 +535,9 @@ describe('review mode (slice 1)', () => {
   })
 
   it('AC-7.6 "again" starts over from the bottom pair of the new order with the counter at 1', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    for (let i = 0; i < 3; i++) await user.click(card('D'))
+    for (let i = 0; i < 3; i++) await pick(user, card('D'))
     await user.click(screen.getByRole('button', { name: labels.review.again }))
     expectPair('B', 'C', 1, 3)
     expect(card('B')).toHaveFocus()
@@ -543,10 +555,10 @@ describe('review mode (slice 1)', () => {
     ],
   ])('AC-8.1 after 2 answers (1 swap) %s closes at once, without a confirm, showing the new order', async (_how, closeIt) => {
     const confirmSpy = vi.spyOn(window, 'confirm')
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    await user.click(card('D'))
-    await user.click(card('B'))
+    await pick(user, card('D'))
+    await pick(user, card('B'))
     await closeIt(user)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(confirmSpy).not.toHaveBeenCalled()
@@ -554,7 +566,7 @@ describe('review mode (slice 1)', () => {
   })
 
   it('AC-10.1 only the four mode controls can take focus while the mode is open', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C')
     const focusable = [...document.querySelectorAll<HTMLElement>('button, input, a[href], select, textarea, [tabindex]')].filter(
       (el) => !el.hasAttribute('disabled') && el.tabIndex >= 0,
@@ -563,71 +575,89 @@ describe('review mode (slice 1)', () => {
   })
 
   it.each([['{Enter}'], [' ']])('AC-10.2 %s on the focused lower card works like clicking it', async (key) => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
     await user.tab()
     expect(card('D')).toHaveFocus()
     await user.keyboard(key)
+    settle()
     expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
     expectPair('B', 'D', 2, 3)
   })
 
   it('AC-10.3 the polite live region announces each new pair and then the summary', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C')
     const live = () => dialog().querySelector('[aria-live="polite"]')
     expect(live()).toHaveTextContent(labels.review.announcePair('B', 'C', 1, 2))
-    await user.click(card('C'))
+    await pick(user, card('C'))
     expect(live()).toHaveTextContent(labels.review.announcePair('A', 'C', 2, 2))
-    await user.click(card('A'))
+    await pick(user, card('A'))
     expect(live()).toHaveTextContent(labels.review.announceDone('A'))
   })
 
   it('AC-F1.1 exactly two todo tasks ask one question and then show the summary', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B')
     expectPair('A', 'B', 1, 1)
-    await user.click(screen.getByRole('button', { name: labels.review.skip }))
+    await pick(user, screen.getByRole('button', { name: labels.review.skip }))
     expect(within(dialog()).getByText(labels.review.topTask('A'))).toBeInTheDocument()
   })
 
   it('AC-F1.3 after a swap, a fresh render opens on the normal list with the swap kept', async () => {
-    const first = setup()
+    const first = setupReview()
     await openWith(first.user, 'A', 'B', 'C')
-    await first.user.click(card('C'))
+    await pick(first.user, card('C'))
     first.unmount()
-    setup()
+    setupReview()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(todoTitles()).toEqual(['A', 'C', 'B'])
   })
 
   it('S1-09 a task finished today is never a card during the round', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await addTasks(user, 'A', 'X', 'B', 'C')
     await user.click(button(labels.complete('X')))
     await user.click(reviewButton())
     for (let i = 0; i < 2; i++) {
       expect(within(dialog()).queryByRole('button', { name: 'X' })).not.toBeInTheDocument()
-      await user.click(card(i === 0 ? 'C' : 'A'))
+      await pick(user, card(i === 0 ? 'C' : 'A'))
     }
     expect(within(dialog()).queryByRole('button', { name: 'X' })).not.toBeInTheDocument()
     expect(storedTodo()).toEqual(['A', 'C', 'B'])
   })
 
   it('S1-10 the two cards share one className through a whole round', async () => {
-    const { user } = setup()
+    const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C')
-    for (const pick of ['C', 'A']) {
+    for (const title of ['C', 'A']) {
       const [upper, lower] = within(dialog()).getAllByRole('button').slice(0, 2)
       expect(upper.className).toBe(lower.className)
-      await user.click(card(pick))
+      await pick(user, card(title))
     }
   })
 
   it('S1-11 data from a newer version shows no review button', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: 3, tasks: [] }))
-    setup()
+    setupReview()
     expect(screen.getByText(labels.newerVersion)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: labels.review.button })).not.toBeInTheDocument()
   })
+
+  it('S1-12 a second click on the same card during the hold is ignored: one swap, the answered pair stays with a ✓, then the next pair', async () => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await user.click(card('D'))
+    await user.click(card('D'))
+    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
+    expectPair('C', 'D', 1, 3)
+    expect(card('D')).toHaveAttribute('data-chosen', 'true')
+    expect(card('D')).toHaveAttribute('aria-disabled', 'true')
+    expect(card('C')).toHaveClass('opacity-50')
+    settle()
+    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
+    expectPair('B', 'D', 2, 3)
+    expect(card('D')).not.toHaveAttribute('aria-disabled')
+  })
+
 })
