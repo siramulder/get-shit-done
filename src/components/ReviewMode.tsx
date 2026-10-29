@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { labels } from '../lib/labels'
 import { ANSWER_HOLD_MS, currentPair, questionNumber, totalQuestions, type Answer, type ReviewState } from '../lib/review'
 import type { Task } from '../types/task'
+import { UndoControls } from './UndoControls'
 
 type Props = {
   tasks: Task[]
@@ -9,6 +10,14 @@ type Props = {
   onAnswer: (answer: Answer) => void
   onRestart: () => void
   onClose: () => void
+  /** Undo of the last *answer* (owned by App); redo is never available inside the mode. */
+  onUndo: () => void
+  canUndo: boolean
+  undoLabel: string | null
+  /** Increments on every answer-undo: ends a running hold and moves focus to the upper card. */
+  undoCount: number
+  /** Label of the answer just undone (announced with the restored pair), null after a new answer. */
+  undoneLabel: string | null
 }
 
 // One class for both cards, so colour can never favour an answer.
@@ -17,17 +26,30 @@ const cardClass =
 const pillButton = 'h-11 rounded-full px-5 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
 
 // While an answer is held the pair stays on screen, the chosen card is marked and the other one dims.
-type Held = { state: ReviewState; choice: Answer }
+type Held = { state: ReviewState; choice: Answer; undoCount: number }
 
-export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props) {
+export function ReviewMode({
+  tasks,
+  state,
+  onAnswer,
+  onRestart,
+  onClose,
+  onUndo,
+  canUndo,
+  undoLabel,
+  undoCount,
+  undoneLabel,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const upperRef = useRef<HTMLButtonElement>(null)
   const againRef = useRef<HTMLButtonElement>(null)
   const headingId = useId()
   // After an answer the answered pair is held for ANSWER_HOLD_MS so a repeated tap or a held key
   // cannot answer the next pair by accident. The swap itself is applied by the parent at once.
-  const [held, setHeld] = useState<Held | null>(null)
+  const [heldRaw, setHeld] = useState<Held | null>(null)
   const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // An answer-undo (App) ends the hold at once: a hold started under an older undoCount no longer counts.
+  const held = heldRaw !== null && heldRaw.undoCount === undoCount ? heldRaw : null
   const shown = held?.state ?? state
   const pair = currentPair(shown)
   const finished = currentPair(state) === null
@@ -46,9 +68,17 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
 
   useEffect(() => () => clearTimeout(holdTimer.current), [])
 
+  // An answer-undo (button or ⌘Z, handled by App) ends any running hold at once and puts focus on the
+  // restored pair's upper card.
+  useEffect(() => {
+    if (undoCount === 0) return
+    clearTimeout(holdTimer.current)
+    upperRef.current?.focus()
+  }, [undoCount])
+
   function choose(choice: Answer) {
     if (held !== null) return
-    setHeld({ state, choice })
+    setHeld({ state, choice, undoCount })
     onAnswer(choice)
     holdTimer.current = setTimeout(() => setHeld(null), ANSWER_HOLD_MS)
   }
@@ -62,6 +92,8 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
   // Escape and the focus trap live on the outermost element of the mode (header + dialog),
   // so they still work after a click on empty space, and nothing is left on `document`
   // to steal Escape from keyboard dragging on the main page.
+  // Tab order is fixed, not DOM order: cards → skip → close, then the header's undo (when enabled),
+  // so the cards stay first even though the header comes first in the DOM.
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Escape') {
       event.preventDefault()
@@ -69,27 +101,37 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
       return
     }
     if (event.key !== 'Tab' || !rootRef.current) return
-    const focusable = [...rootRef.current.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]
-    if (focusable.length === 0) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    const active = document.activeElement
-    if (event.shiftKey && (active === first || active === rootRef.current)) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault()
-      first.focus()
-    }
+    const root = rootRef.current
+    const order = [
+      ...root.querySelectorAll<HTMLButtonElement>('[role="dialog"] button:not(:disabled)'),
+      ...root.querySelectorAll<HTMLButtonElement>('header button:not(:disabled)'),
+    ]
+    if (order.length === 0) return
+    event.preventDefault()
+    const index = order.indexOf(document.activeElement as HTMLButtonElement)
+    const last = order.length - 1
+    const next =
+      index === -1
+        ? order[event.shiftKey ? last : 0]
+        : order[event.shiftKey ? (index === 0 ? last : index - 1) : index === last ? 0 : index + 1]
+    next.focus()
   }
 
   const announcement = pair
-    ? labels.review.announcePair(
-        titleOf(pair.upperId),
-        titleOf(pair.lowerId),
-        questionNumber(shown),
-        totalQuestions(shown),
-      )
+    ? undoneLabel !== null
+      ? labels.review.announceUndo(
+          undoneLabel,
+          titleOf(pair.upperId),
+          titleOf(pair.lowerId),
+          questionNumber(shown),
+          totalQuestions(shown),
+        )
+      : labels.review.announcePair(
+          titleOf(pair.upperId),
+          titleOf(pair.lowerId),
+          questionNumber(shown),
+          totalQuestions(shown),
+        )
     : labels.review.announceDone(topTitle)
 
   return (
@@ -100,8 +142,16 @@ export function ReviewMode({ tasks, state, onAnswer, onRestart, onClose }: Props
       className="flex min-h-screen flex-col bg-paper text-ink outline-none"
     >
       <header className="border-b-2 border-header-line bg-header">
-        <div className="mx-auto w-full max-w-xl px-4 py-5">
+        <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-5">
           <h1 className="text-[30px] font-bold leading-tight text-neon">{labels.appTitle}</h1>
+          <UndoControls
+            canUndo={canUndo}
+            canRedo={false}
+            onUndo={onUndo}
+            onRedo={() => undefined}
+            undoLabel={undoLabel}
+            redoLabel={null}
+          />
         </div>
       </header>
       <section

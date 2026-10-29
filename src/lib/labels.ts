@@ -40,5 +40,25 @@ export const labels = {
     announcePair: (upper: string, lower: string, k: number, total: number) =>
       `อันไหนทำก่อน? บน: ${upper} ล่าง: ${lower} คำถาม ${k} จาก ${total}`,
     announceDone: (title: string) => `ตรวจลำดับครบแล้ว งานบนสุดตอนนี้: ${title}`,
+    answerUpper: (title: string) => `เลือก "${title}" ไว้บน`,
+    answerSkip: (upper: string, lower: string) => `ข้ามคู่ "${upper}" กับ "${lower}"`,
+    announceUndo: (label: string, upper: string, lower: string, k: number, total: number) =>
+      `เลิกทำ: ${label} อันไหนทำก่อน? บน: ${upper} ล่าง: ${lower} คำถาม ${k} จาก ${total}`,
+  },
+  undo: {
+    undo: 'เลิกทำ',
+    redo: 'ทำซ้ำ',
+    nothingToUndo: 'ไม่มีอะไรให้เลิกทำ',
+    nothingToRedo: 'ไม่มีอะไรให้ทำซ้ำ',
+    undone: (label: string) => `เลิกทำ: ${label}`,
+    redone: (label: string) => `ทำซ้ำ: ${label}`,
+  },
+  history: {
+    add: (title: string) => `เพิ่มงาน "${title}"`,
+    remove: (title: string) => `ลบงาน "${title}"`,
+    complete: (title: string) => `ทำเสร็จ "${title}"`,
+    uncomplete: (title: string) => `ย้อนกลับ "${title}"`,
+    move: (title: string) => `เลื่อนลำดับ "${title}"`,
+    swap: (title: string) => `สลับลำดับ "${title}"`,
   },
 }

@@ -2,6 +2,7 @@ import { createElement, StrictMode, type ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
 import { useTasks } from './useTasks'
 import { BACKUP_KEY, STORAGE_KEY } from '../lib/storage'
+import { labels } from '../lib/labels'
 import type { Store, Task } from '../types/task'
 
 type HookResult = { current: ReturnType<typeof useTasks> }
@@ -492,5 +493,208 @@ describe('v2 store and migration', () => {
       expect(stored().length, `after ${name}`).toBeGreaterThan(0)
       expect(stored().find((t) => t.id === 'c')?.dueDate, `after ${name}`).toBe('2026-10-17')
     }
+  })
+})
+
+describe('undo / redo history (slice 2)', () => {
+  const strict = ({ children }: { children: ReactNode }) => createElement(StrictMode, null, children)
+  const seedV2 = (tasks: Task[]) => localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks }))
+  const a: Task = { id: 'a', title: 'A', order: 0, status: 'todo', createdAt: '2026-10-05T01:00:00.000Z' }
+  const b: Task = { id: 'b', title: 'B', order: 1, status: 'todo', createdAt: '2026-10-05T02:00:00.000Z' }
+
+  it('AC-15.1 undoing a delete puts B back in position 2 with every field as before', () => {
+    const { result } = setup('A', 'B', 'C')
+    const before = snapshot(result)
+    const storedBefore = stored()
+    act(() => result.current.deleteTask(idOf(result, 'B')))
+    expect(titles(result.current.todoTasks)).toEqual(['A', 'C'])
+    act(() => result.current.undo())
+    expect(titles(result.current.todoTasks)).toEqual(['A', 'B', 'C'])
+    expect(snapshot(result)).toStrictEqual(before)
+    expect(stored()).toStrictEqual(storedBefore)
+  })
+
+  it.each<[string, (result: HookResult) => void]>([
+    ['addTask', (r) => r.current.addTask('E')],
+    ['completeTask', (r) => r.current.completeTask(idOf(r, 'B'))],
+    ['uncompleteTask', (r) => r.current.uncompleteTask(idOf(r, 'D'))],
+    ['moveTask ↑↓', (r) => r.current.moveTask(idOf(r, 'B'), 'down')],
+    ['reorderTasks (drag)', (r) => r.current.reorderTasks(idOf(r, 'A'), idOf(r, 'C'))],
+    ['moveTask from the review (swap)', (r) => r.current.moveTask(idOf(r, 'C'), 'up', 'swap')],
+    ['deleteTask', (r) => r.current.deleteTask(idOf(r, 'A'))],
+  ])('AC-15.2 undo after %s restores the exact previous state, completedAt included', (_name, run) => {
+    freezeAt(local(5, 9))
+    const { result } = setup('A', 'B', 'C', 'D')
+    act(() => result.current.completeTask(idOf(result, 'D')))
+    const before = snapshot(result)
+    act(() => run(result))
+    expect(snapshot(result)).not.toStrictEqual(before)
+    act(() => result.current.undo())
+    expect(snapshot(result)).toStrictEqual(before)
+    expect(stored().sort((x, y) => x.id.localeCompare(y.id))).toStrictEqual(
+      [...before.todo, ...before.done].sort((x, y) => x.id.localeCompare(y.id)),
+    )
+  })
+
+  it('AC-15.3 starts with nothing to undo or redo', () => {
+    seedV2([a, b])
+    const { result } = renderHook(() => useTasks())
+    expect(result.current.canUndo).toBe(false)
+    expect(result.current.canRedo).toBe(false)
+    expect(result.current.lastUndoLabel).toBeNull()
+    expect(result.current.lastRedoLabel).toBeNull()
+  })
+
+  it('AC-15.5 a new action after an undo clears redo', () => {
+    const { result } = setup('A')
+    act(() => result.current.addTask('B'))
+    act(() => result.current.undo())
+    expect(result.current.canRedo).toBe(true)
+    act(() => result.current.addTask('C'))
+    expect(result.current.canRedo).toBe(false)
+    expect(titles(result.current.todoTasks)).toEqual(['A', 'C'])
+  })
+
+  it('AC-15.7 keeps 50 steps: after 60 actions undo stops after 50, leaving the state after action 10', () => {
+    const { result } = renderHook(() => useTasks())
+    for (let i = 1; i <= 60; i++) act(() => result.current.addTask(`T${i}`))
+    let undone = 0
+    while (result.current.canUndo) {
+      act(() => result.current.undo())
+      undone++
+    }
+    expect(undone).toBe(50)
+    expect(titles(result.current.todoTasks)).toEqual(Array.from({ length: 10 }, (_, i) => `T${i + 1}`))
+    act(() => result.current.undo())
+    expect(titles(result.current.todoTasks)).toHaveLength(10)
+  })
+
+  it('AC-15.8 history does not survive a remount, the tasks do', () => {
+    const first = setup('A', 'B')
+    expect(first.result.current.canUndo).toBe(true)
+    first.unmount()
+    const { result } = renderHook(() => useTasks())
+    expect(titles(result.current.todoTasks)).toEqual(['A', 'B'])
+    expect(result.current.canUndo).toBe(false)
+    expect(result.current.canRedo).toBe(false)
+    act(() => result.current.undo())
+    expect(titles(result.current.todoTasks)).toEqual(['A', 'B'])
+  })
+
+  it('AC-15.9 localStorage matches the state right after undo and right after redo', () => {
+    const { result } = setup('A', 'B')
+    act(() => result.current.completeTask(idOf(result, 'A')))
+    act(() => result.current.undo())
+    expect(stored().map((t) => [t.title, t.status])).toEqual([
+      ['A', 'todo'],
+      ['B', 'todo'],
+    ])
+    act(() => result.current.redo())
+    expect(stored().map((t) => [t.title, t.status])).toEqual([
+      ['A', 'done'],
+      ['B', 'todo'],
+    ])
+    expect((JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Store).schemaVersion).toBe(2)
+  })
+
+  it('S2-01 actions that change nothing create no history entry', () => {
+    seedV2([a, b])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.moveTask('a', 'up'))
+    act(() => result.current.moveTask('b', 'down'))
+    act(() => result.current.completeTask('nope'))
+    act(() => result.current.deleteTask('nope'))
+    act(() => result.current.uncompleteTask('a'))
+    act(() => result.current.reorderTasks('a', 'a'))
+    act(() => result.current.addTask('   '))
+    expect(result.current.canUndo).toBe(false)
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(JSON.stringify({ schemaVersion: 2, tasks: [a, b] }))
+  })
+
+  it('S2-02 three undos step back one action each, three redos bring everything back', () => {
+    seedV2([a]) // seeded, not added: the history starts empty
+    const { result } = renderHook(() => useTasks())
+    const states = [snapshot(result)]
+    act(() => result.current.addTask('B'))
+    states.push(snapshot(result))
+    act(() => result.current.moveTask(idOf(result, 'B'), 'up'))
+    states.push(snapshot(result))
+    act(() => result.current.completeTask(idOf(result, 'A')))
+    states.push(snapshot(result))
+    for (const expected of [states[2], states[1], states[0]]) {
+      act(() => result.current.undo())
+      expect(snapshot(result)).toStrictEqual(expected)
+    }
+    expect(result.current.canUndo).toBe(false)
+    for (const expected of [states[1], states[2], states[3]]) {
+      act(() => result.current.redo())
+      expect(snapshot(result)).toStrictEqual(expected)
+    }
+    expect(result.current.canRedo).toBe(false)
+  })
+
+  it('S2-03 newer-version data: undo and redo are no-ops and both flags stay false', () => {
+    const raw = '{\n  "schemaVersion": 3,\n  "tasks": []\n}\n'
+    localStorage.setItem(STORAGE_KEY, raw)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.addTask('A'))
+    act(() => result.current.undo())
+    act(() => result.current.redo())
+    expect(result.current.canUndo).toBe(false)
+    expect(result.current.canRedo).toBe(false)
+    expect(result.current.todoTasks).toEqual([])
+    expect(setItem).not.toHaveBeenCalled()
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+  })
+
+  it('S2-04 inside <StrictMode> one action creates exactly one history entry', () => {
+    const { result } = renderHook(() => useTasks(), { wrapper: strict })
+    act(() => result.current.addTask('A'))
+    expect(result.current.canUndo).toBe(true)
+    act(() => result.current.undo())
+    expect(result.current.todoTasks).toEqual([])
+    expect(result.current.canUndo).toBe(false)
+  })
+
+  it('S2-05 history labels name the kind of action and the task', () => {
+    freezeAt(local(5, 9))
+    const { result } = setup('A', 'B', 'C')
+    expect(result.current.lastUndoLabel).toBe(labels.history.add('C'))
+    act(() => result.current.completeTask(idOf(result, 'A')))
+    expect(result.current.lastUndoLabel).toBe(labels.history.complete('A'))
+    act(() => result.current.uncompleteTask(idOf(result, 'A')))
+    expect(result.current.lastUndoLabel).toBe(labels.history.uncomplete('A'))
+    act(() => result.current.moveTask(idOf(result, 'A'), 'up'))
+    expect(result.current.lastUndoLabel).toBe(labels.history.move('A'))
+    act(() => result.current.reorderTasks(idOf(result, 'A'), idOf(result, 'C')))
+    expect(result.current.lastUndoLabel).toBe(labels.history.move('A'))
+    act(() => result.current.moveTask(idOf(result, 'A'), 'up', 'swap'))
+    expect(result.current.lastUndoLabel).toBe(labels.history.swap('A'))
+    act(() => result.current.deleteTask(idOf(result, 'B')))
+    expect(result.current.lastUndoLabel).toBe(labels.history.remove('B'))
+    act(() => result.current.undo())
+    expect(result.current.lastRedoLabel).toBe(labels.history.remove('B'))
+    expect(result.current.lastUndoLabel).toBe(labels.history.swap('A'))
+  })
+
+  it('S2-21 undoing back to the very first snapshot still writes localStorage', () => {
+    seedV2([a])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.addTask('B'))
+    expect(stored()).toHaveLength(2)
+    act(() => result.current.undo())
+    expect(stored()).toStrictEqual([a])
+  })
+
+  it('S2-22 redo after undoing to the first snapshot catches localStorage up again', () => {
+    seedV2([a])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.addTask('B'))
+    act(() => result.current.undo())
+    expect(stored()).toStrictEqual([a])
+    act(() => result.current.redo())
+    expect(stored().map((t) => t.title)).toEqual(['A', 'B'])
+    expect(stored()).toStrictEqual([...result.current.todoTasks])
   })
 })

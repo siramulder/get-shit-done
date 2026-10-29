@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent, { type UserEvent } from '@testing-library/user-event'
 import App from './App'
 import { labels } from './lib/labels'
@@ -660,4 +660,305 @@ describe('review mode (slice 1)', () => {
     expect(card('D')).not.toHaveAttribute('aria-disabled')
   })
 
+})
+
+// Keyboard shortcuts are matched on e.code, so the key itself can be a Thai letter.
+const keyZ = (extra: KeyboardEventInit = {}) => ({ code: 'KeyZ', key: 'ผ', ...extra })
+const keyY = (extra: KeyboardEventInit = {}) => ({ code: 'KeyY', key: 'ๅ', ...extra })
+const undoButton = () => screen.getByRole('button', { name: labels.undo.undo })
+const redoButton = () => screen.getByRole('button', { name: labels.undo.redo })
+
+describe('undo / redo (slice 2)', () => {
+  it('AC-15.3 undo and redo start disabled and follow the history', async () => {
+    const { user } = setup()
+    expect(undoButton()).toBeDisabled()
+    expect(redoButton()).toBeDisabled()
+    await addTasks(user, 'A')
+    expect(undoButton()).toBeEnabled()
+    expect(redoButton()).toBeDisabled()
+    await user.click(undoButton())
+    expect(todoTitles()).toEqual([])
+    expect(undoButton()).toBeDisabled()
+    expect(redoButton()).toBeEnabled()
+    await user.click(redoButton())
+    expect(todoTitles()).toEqual(['A'])
+  })
+
+  it.each<[string, KeyboardEventInit]>([
+    ['Ctrl+Z', keyZ({ ctrlKey: true })],
+    ['⌘Z', keyZ({ metaKey: true })],
+  ])('AC-15.4 %s while typing in the text box leaves the app history alone and is not prevented', async (_name, init) => {
+    const { user } = setup()
+    await addTasks(user, 'A')
+    const input = screen.getByRole('textbox', { name: labels.inputLabel })
+    await user.click(input)
+    expect(input).toHaveFocus()
+    const notPrevented = fireEvent.keyDown(input, init)
+    expect(notPrevented).toBe(true)
+    expect(todoTitles()).toEqual(['A'])
+    expect(undoButton()).toBeEnabled()
+  })
+
+  it('S2-06 ⌘Z and Ctrl+Z undo, ⇧⌘Z and Ctrl+Y redo — matched on code with a Thai key', async () => {
+    const { user } = setup()
+    await addTasks(user, 'A', 'B')
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true }))).toBe(false) // prevented = handled
+    expect(todoTitles()).toEqual(['A'])
+    expect(fireEvent.keyDown(document.body, keyZ({ ctrlKey: true }))).toBe(false)
+    expect(todoTitles()).toEqual([])
+    expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true, shiftKey: true }))).toBe(false)
+    expect(todoTitles()).toEqual(['A'])
+    expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(false)
+    expect(todoTitles()).toEqual(['A', 'B'])
+    // nothing left to redo: the key is not claimed
+    expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(true)
+    expect(todoTitles()).toEqual(['A', 'B'])
+  })
+
+  it('S2-07 a held-down key (repeat) does not undo', async () => {
+    const { user } = setup()
+    await addTasks(user, 'A')
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true, repeat: true }))).toBe(true)
+    expect(todoTitles()).toEqual(['A'])
+  })
+
+  it('S2-08 ⌘Z while a task is lifted with the keyboard (activator aria-pressed) changes nothing', async () => {
+    const original = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
+    Element.prototype.scrollIntoView = vi.fn()
+    try {
+      const { user } = setup()
+      await addTasks(user, 'A', 'B')
+      const handle = button(labels.dragHandle('A'))
+      handle.focus()
+      fireEvent.keyDown(handle, { code: 'Space' })
+      await act(() => new Promise((r) => setTimeout(r, 0)))
+      expect(handle).toHaveAttribute('aria-pressed', 'true')
+      expect(fireEvent.keyDown(handle, keyZ({ metaKey: true }))).toBe(true)
+      expect(todoTitles()).toEqual(['A', 'B'])
+      expect(undoButton()).toBeEnabled()
+      fireEvent.keyDown(document, { code: 'Escape' })
+      await act(() => new Promise((r) => setTimeout(r, 0)))
+      expect(handle).not.toHaveAttribute('aria-pressed', 'true')
+    } finally {
+      if (original) Object.defineProperty(Element.prototype, 'scrollIntoView', original)
+      else delete (Element.prototype as Partial<Element>).scrollIntoView
+    }
+  })
+
+  it('S2-09 newer-version data shows no undo / redo buttons and ⌘Z does nothing', () => {
+    const raw = '{\n  "schemaVersion": 3,\n  "tasks": []\n}\n'
+    localStorage.setItem(STORAGE_KEY, raw)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    setup()
+    expect(screen.getByText(labels.newerVersion)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: labels.undo.undo })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: labels.undo.redo })).not.toBeInTheDocument()
+    expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true }))).toBe(true)
+    expect(setItem).not.toHaveBeenCalled()
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+  })
+
+  it('S2-10 the main page announces "เลิกทำ: …" and "ทำซ้ำ: …" politely', async () => {
+    const { user } = setup()
+    await addTasks(user, 'A')
+    await user.click(undoButton())
+    const undone = screen.getByText(labels.undo.undone(labels.history.add('A')))
+    expect(undone).toHaveAttribute('aria-live', 'polite')
+    await user.click(redoButton())
+    expect(screen.getByText(labels.undo.redone(labels.history.add('A')))).toHaveAttribute('aria-live', 'polite')
+  })
+
+  it('S2-11 inside <StrictMode> one ⌘Z undoes exactly one step (the listener is bound once)', async () => {
+    const { user } = setup(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    )
+    await addTasks(user, 'A', 'B')
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    fireEvent.keyDown(document.body, keyZ({ metaKey: true }))
+    expect(todoTitles()).toEqual(['A'])
+  })
+
+  it('S2-12 the undo button describes the action it will undo; disabled buttons say there is nothing', async () => {
+    const { user } = setup()
+    expect(undoButton()).toHaveAccessibleDescription(labels.undo.nothingToUndo)
+    expect(redoButton()).toHaveAccessibleDescription(labels.undo.nothingToRedo)
+    await addTasks(user, 'A')
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.add('A'))
+    expect(undoButton()).toHaveAttribute('title', labels.history.add('A'))
+    await user.click(button(labels.complete('A')))
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.complete('A'))
+    await user.click(undoButton())
+    expect(redoButton()).toHaveAccessibleDescription(labels.history.complete('A'))
+  })
+})
+
+describe('review-answer undo (slice 2)', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] }))
+  const setupReview = () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    return { user, ...render(<App />) }
+  }
+  const settle = () => act(() => vi.advanceTimersByTime(ANSWER_HOLD_MS))
+  async function pick(user: UserEvent, target: HTMLElement) {
+    await user.click(target)
+    settle()
+  }
+  const dialog = () => screen.getByRole('dialog')
+  const reviewButton = () => screen.getByRole('button', { name: labels.review.button })
+  const storedTodo = () =>
+    (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{"schemaVersion":2,"tasks":[]}') as Store).tasks
+      .filter((t) => t.status === 'todo')
+      .sort((a, b) => a.order - b.order)
+      .map((t) => t.title)
+  const card = (title: string) => within(dialog()).getByRole('button', { name: title })
+  const live = () => dialog().querySelector('[aria-live="polite"]')
+  function expectPair(upper: string, lower: string, k: number, total: number) {
+    expect(card(upper)).toHaveAttribute('data-position', 'upper')
+    expect(card(lower)).toHaveAttribute('data-position', 'lower')
+    expect(within(dialog()).getByText(labels.review.counter(k, total))).toBeInTheDocument()
+  }
+  async function openWith(user: UserEvent, ...titles: string[]) {
+    await addTasks(user, ...titles)
+    await user.click(reviewButton())
+  }
+  const pressUndo = () => act(() => void fireEvent.keyDown(document.body, keyZ({ metaKey: true })))
+
+  it.each<[string, () => Promise<void> | void]>([
+    ['⌘Z', () => pressUndo()],
+    ['the undo button', async () => undefined],
+  ])('AC-9.1 after answering pair 2 with "lower", %s reverts the swap and returns to pair 2 with focus on the upper card', async (how, trigger) => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await pick(user, card('C')) // q1 C/D → keep
+    await pick(user, card('C')) // q2 B/C → lower C swaps: A, C, B, D
+    expect(storedTodo()).toEqual(['A', 'C', 'B', 'D'])
+    expectPair('A', 'C', 3, 3)
+    if (how === '⌘Z') await trigger()
+    else await user.click(undoButton())
+    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
+    expectPair('B', 'C', 2, 3)
+    expect(card('B')).toHaveFocus()
+    expect(live()).toHaveTextContent(labels.review.announceUndo(labels.history.swap('C'), 'B', 'C', 2, 3))
+  })
+
+  it('AC-9.2 after closing a round with 3 swaps, ⌘Z three times walks back one pair at a time', async () => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C', 'D', 'E')
+    await pick(user, card('E')) // D/E → E up: A B C E D
+    await pick(user, card('E')) // C/E → E up: A B E C D
+    await pick(user, card('E')) // B/E → E up: A E B C D
+    await user.click(screen.getByRole('button', { name: labels.review.close }))
+    expect(todoTitles()).toEqual(['A', 'E', 'B', 'C', 'D'])
+    pressUndo()
+    expect(todoTitles()).toEqual(['A', 'B', 'E', 'C', 'D'])
+    pressUndo()
+    expect(todoTitles()).toEqual(['A', 'B', 'C', 'E', 'D'])
+    pressUndo()
+    expect(todoTitles()).toEqual(['A', 'B', 'C', 'D', 'E'])
+    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D', 'E'])
+  })
+
+  it.each<[string, (user: UserEvent) => Promise<void>]>([
+    ['the upper card', (user) => pick(user, card('C'))],
+    ['skip', (user) => pick(user, screen.getByRole('button', { name: labels.review.skip }))],
+  ])('S2-13 undoing %s steps the counter back and leaves the task history untouched', async (_how, answerIt) => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await answerIt(user)
+    expectPair('B', 'C', 2, 3)
+    await user.click(undoButton())
+    expectPair('C', 'D', 1, 3)
+    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
+    await user.click(screen.getByRole('button', { name: labels.review.close }))
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.add('D')) // nothing from the review was recorded
+    expect(redoButton()).toBeDisabled()
+  })
+
+  it('S2-14 undo during the 800 ms hold cancels the hold and reverts the answer at once', async () => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await user.click(card('D'))
+    expect(vi.getTimerCount()).toBe(1)
+    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
+    await user.click(undoButton())
+    expect(vi.getTimerCount()).toBe(0)
+    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
+    expectPair('C', 'D', 1, 3)
+    expect(dialog().querySelector('[data-chosen]')).toBeNull()
+    expect(card('C')).not.toHaveAttribute('aria-disabled')
+    expect(card('C')).toHaveFocus()
+    settle()
+    expectPair('C', 'D', 1, 3)
+  })
+
+  it('S2-15 redo stays disabled throughout the mode, even right after an undo', async () => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C')
+    expect(redoButton()).toBeDisabled()
+    await pick(user, card('C'))
+    expect(redoButton()).toBeDisabled()
+    await user.click(undoButton())
+    expect(redoButton()).toBeDisabled()
+    expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true, shiftKey: true }))).toBe(true)
+    expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(true)
+    expect(storedTodo()).toEqual(['A', 'B', 'C'])
+  })
+
+  it('S2-16 undoing back to question 1 disables undo', async () => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C')
+    expect(undoButton()).toBeDisabled()
+    await pick(user, card('C'))
+    expect(undoButton()).toBeEnabled()
+    await user.click(undoButton())
+    expect(undoButton()).toBeDisabled()
+    expectPair('B', 'C', 1, 2)
+    expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true }))).toBe(true)
+    expect(storedTodo()).toEqual(['A', 'B', 'C'])
+  })
+
+  it('S2-17 "again" starts a fresh round with nothing to undo', async () => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C')
+    await pick(user, card('C'))
+    await pick(user, card('A'))
+    await user.click(screen.getByRole('button', { name: labels.review.again }))
+    expect(undoButton()).toBeDisabled()
+    expectPair('C', 'B', 1, 2) // the round above swapped C above B
+  })
+
+  it('S2-18 closing and reopening the mode drops the answer history but keeps the task history', async () => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C')
+    await pick(user, card('C')) // swap: A C B
+    await user.click(screen.getByRole('button', { name: labels.review.close }))
+    expect(undoButton()).toBeEnabled()
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.swap('C'))
+    await user.click(reviewButton())
+    expect(undoButton()).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: labels.review.close }))
+    expect(undoButton()).toBeEnabled()
+    await user.click(undoButton())
+    expect(todoTitles()).toEqual(['A', 'B', 'C'])
+  })
+
+  it('S2-19 undo in the mode, then a different answer: the new answer wins and nothing is left to redo', async () => {
+    const { user } = setupReview()
+    await openWith(user, 'A', 'B', 'C', 'D')
+    await pick(user, card('D')) // swap → A B D C
+    await user.click(undoButton())
+    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
+    await pick(user, card('C')) // keep C on top this time
+    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
+    expectPair('B', 'C', 2, 3)
+    await user.click(screen.getByRole('button', { name: labels.review.close }))
+    expect(redoButton()).toBeDisabled()
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.add('D'))
+    expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(true)
+    expect(todoTitles()).toEqual(['A', 'B', 'C', 'D'])
+  })
 })

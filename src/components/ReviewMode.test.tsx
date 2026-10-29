@@ -14,10 +14,14 @@ const task = (id: string, order: number): Task => ({
 })
 const tasks = [task('A', 0), task('B', 1), task('C', 2), task('D', 3)]
 
-function renderMode(state = startReview(tasks.map((t) => t.id))!) {
-  const handlers = { onAnswer: vi.fn(), onRestart: vi.fn(), onClose: vi.fn() }
-  const view = render(<ReviewMode tasks={tasks} state={state} {...handlers} />)
-  const rerenderWith = (next = state) => view.rerender(<ReviewMode tasks={tasks} state={next} {...handlers} />)
+type UndoProps = { canUndo: boolean; undoLabel: string | null; undoCount: number; undoneLabel: string | null }
+const noUndo: UndoProps = { canUndo: false, undoLabel: null, undoCount: 0, undoneLabel: null }
+
+function renderMode(state = startReview(tasks.map((t) => t.id))!, undo: UndoProps = noUndo) {
+  const handlers = { onAnswer: vi.fn(), onRestart: vi.fn(), onClose: vi.fn(), onUndo: vi.fn() }
+  const view = render(<ReviewMode tasks={tasks} state={state} {...handlers} {...undo} />)
+  const rerenderWith = (next = state, nextUndo = undo) =>
+    view.rerender(<ReviewMode tasks={tasks} state={next} {...handlers} {...nextUndo} />)
   return { ...handlers, rerenderWith, unmount: view.unmount }
 }
 
@@ -60,6 +64,26 @@ describe('ReviewMode', () => {
     expect(card('upper')).toHaveFocus()
     await user.tab({ shift: true })
     expect(screen.getByRole('button', { name: labels.review.close })).toHaveFocus()
+  })
+
+  it('AC-10.1 with "undo" enabled the cycle is upper → lower → skip → close → undo → upper (and back)', async () => {
+    const user = setupUser()
+    renderMode(undefined, { ...noUndo, canUndo: true, undoLabel: labels.history.swap('งาน D') })
+    const undo = screen.getByRole('button', { name: labels.undo.undo })
+    expect(card('upper')).toHaveFocus()
+    await user.tab()
+    await user.tab()
+    await user.tab()
+    expect(screen.getByRole('button', { name: labels.review.close })).toHaveFocus()
+    await user.tab()
+    expect(undo).toHaveFocus()
+    await user.tab()
+    expect(card('upper')).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(undo).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(screen.getByRole('button', { name: labels.review.close })).toHaveFocus()
+    expect(screen.getByRole('button', { name: labels.undo.redo })).toBeDisabled()
   })
 
   it('AC-10.1 card names are the task titles only; the บน/ล่าง tags are hidden from assistive tech', () => {
