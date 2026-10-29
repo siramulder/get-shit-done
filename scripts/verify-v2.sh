@@ -15,7 +15,8 @@ BASE_HASH=19ccfada7707c509d73a0f61effb89096df3ed00
 # When a slice starts: add SLICE_<n>="..." and bump LATEST_SLICE.
 SLICE_0="AC-16.1 AC-16.2 AC-16.3 AC-16.4 AC-17.1 S0-01 S0-02 S0-03 S0-04 S0-05 S0-05b S0-06 S0-07 S0-08 S0-09 S0-10"
 SLICE_1="AC-6.1 AC-6.2 AC-6.4 AC-7.1 AC-7.2 AC-7.3 AC-7.4 AC-7.5 AC-7.6 AC-8.1 AC-10.1 AC-10.2 AC-10.3 AC-F1.1 AC-F1.3 S1-01 S1-02 S1-03 S1-04 S1-05 S1-06 S1-07 S1-08 S1-09 S1-10 S1-11 S1-12 S1-13 S1-14 S1-15"
-LATEST_SLICE=1
+SLICE_2="AC-9.1 AC-9.2 AC-15.1 AC-15.2 AC-15.3 AC-15.4 AC-15.5 AC-15.7 AC-15.8 AC-15.9 S2-01 S2-02 S2-03 S2-04 S2-05 S2-06 S2-07 S2-08 S2-09 S2-10 S2-11 S2-12 S2-13 S2-14 S2-15 S2-16 S2-17 S2-18 S2-19 S2-20 S2-21 S2-22"
+LATEST_SLICE=2
 
 PRE_COMMIT=0
 SLICE=""
@@ -256,6 +257,39 @@ report_scan "V2-14" "no hex colours or Tailwind palette colour classes in src/co
   "a hex colour or a Tailwind palette colour was found — use the tokens in src/index.css (CLAUDE.md, Visual Direction)" \
   "$COMPONENTS_AND_APP" '#[0-9a-fA-F]{3,8}\b|\b(?:[a-z-]+:)*(?:bg|text|border|outline|ring|placeholder|from|to|via|fill|stroke|decoration|accent|caret|divide|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b|\b(?:[a-z-]+:)*(?:bg|text|border)-(?:white|black)\b' ''
 
+# The undo/redo shortcut listener is the one allowed global listener: only in src/App.tsx, only 'keydown',
+# and that file must not handle Escape (review mode owns Escape on its own element).
+V215="$(node -e '
+  const fs = require("fs");
+  try {
+    const files = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
+    const problems = [];
+    let keydownInApp = 0;
+    for (const file of files) {
+      const lines = fs.readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, i) => {
+        if (/\baddEventListener\s*\(/.test(line)) {
+          if (file !== "src/App.tsx") problems.push(`${file}:${i + 1}: addEventListener outside App.tsx: ${line.trim()}`);
+          else if (!/[\x27"]keydown[\x27"]/.test(line)) problems.push(`${file}:${i + 1}: addEventListener for something other than keydown: ${line.trim()}`);
+          else keydownInApp++;
+        }
+        if (file === "src/App.tsx" && /\bEscape\b/.test(line)) problems.push(`${file}:${i + 1}: Escape handled in the file that owns the window listener: ${line.trim()}`);
+      });
+    }
+    if (keydownInApp > 1) problems.push(`src/App.tsx: ${keydownInApp} keydown listeners, expected at most 1`);
+    problems.forEach((p) => console.log(p));
+    process.exit(problems.length ? 1 : 0);
+  } catch (error) {
+    console.log(String(error));
+    process.exit(2);
+  }
+' "$NON_TEST" 2>&1)"
+case $? in
+  0) pass "V2-15" "the only addEventListener in src (non-test) is the single keydown listener in src/App.tsx, which never touches Escape" ;;
+  1) fail "V2-15" "a global listener outside App.tsx, a non-keydown listener, or Escape handling in App.tsx"; printf '%s\n' "$V215" | evidence ;;
+  *) fail "V2-15" "the check could not run"; printf '%s\n' "$V215" | evidence ;;
+esac
+
 RETIRED_SCRIPTS="scripts/verify-phase0.sh scripts/verify-phase2.sh"
 if [ -z "$BASE" ]; then
   fail "V2-13" "cannot compare the retired scripts: BASE commit not found"
@@ -377,6 +411,7 @@ echo "  M-15 ข้อมูล schemaVersion 3 → เห็นข้อคว�
 echo "  M-16 localStorage ของ MVP1 จริง → งานครบ ลำดับเดิม → กด 1 ครั้ง → refresh ยังครบ"
 echo "  M-17–M-21 โหมดตรวจลำดับ: 375px, คีย์บอร์ดล้วน, เมาส์ 6 งาน + reload, light/dark ที่ 375px และ 1280×900, VoiceOver (รอ PO)"
 echo "  M-02 ซ้ำ: Escape ของการลากด้วยคีย์บอร์ดยังยกเลิกได้หลังเปิด-ปิดโหมดตรวจลำดับ"
+echo "  M-23–M-28 undo/redo: คีย์ลัดทั้ง 4 แบบ, native undo ในช่องพิมพ์, ย้อนคำตอบในโหมด, ⌘Z ขณะยกงาน, เลิกทำระหว่าง hold, VoiceOver (รอ PO)"
 echo "  ⚠ V2-10 และ V2-11 ที่ผ่าน ไม่ได้แปลว่า M-10 (console สะอาด) ผ่าน — ต้องเปิด DevTools ดูเอง"
 echo "  ⚠ ทุกครั้งที่แก้ส่วนลากวาง ต้องตรวจ M-01, M-02, M-03, M-11 ใหม่ (ดู docs/MANUAL_QA.md)"
 

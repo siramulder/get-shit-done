@@ -55,7 +55,7 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 |---|---|---|---|
 | 0 | US-16 migration + ปลด scope guard + US-17 contrast placeholder | AC-16.1 ถึง 16.4, AC-17.1, S0-01 ถึง S0-10 (+S0-05b) | เสร็จ `f335a93` (docs), `878b6be` (feat), `ae0df0d` (fix), `c68af21` (chore) · deploy 2026-10-20 |
 | 1 | US-6, 7, 8, 10 ตรวจลำดับ | AC-6.1, 6.2, 6.4, AC-7.1–7.6, AC-8.1, AC-10.1–10.3, AC-F1.1, F1.3, S1-01–S1-11 | เสร็จ `77b6bb5`, `d57b686` (R), `c901af9` (feat), `0ee347a` (chore) · deploy 2026-10-25 |
-| 2 | US-15 + US-9 undo/redo | AC-15.x, AC-9.1, 9.2 | ยังไม่เริ่ม |
+| 2 | US-15 + US-9 undo/redo | AC-15.1, 15.2, 15.3, 15.4, 15.5, 15.7, 15.8, 15.9, AC-9.1, 9.2, S2-01–S2-22 | เสร็จ (commit แล้ว ยังไม่ push — รอ PO ลองใช้) ดูสรุปด้านล่าง |
 | 3 | US-11, 12, 13 deadline | AC-11.x, AC-12.x, AC-13.x และ AC-6.3 | ยังไม่เริ่ม |
 | 4 | US-14 แก้ชื่อ inline | AC-14.x | ยังไม่เริ่ม |
 | 5 | QA + ทดสอบผู้ใช้ + migration จริง + เอกสาร | G1 ถึง G4 | ยังไม่เริ่ม |
@@ -135,6 +135,33 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - **เทสต์:** 265 ข้อ (+9) · แก้เทสต์เดิม ID คง: AC-10.2 (ReviewMode) แยก Enter/Space เป็นคนละเทสต์ เพราะกดสองครั้งติดกันตอนนี้ตั้งใจให้ครั้งที่สองไม่มีผล · S1-10 เพิ่ม assertion หลัง hold · เทสต์ App ที่ตอบหลายคู่ใช้ fake timers + settle 800 ms (assertion เดิมไม่เปลี่ยน)
 - **ลองทำโค้ดพัง 4 แบบ:** (ก) ไม่เช็ก hold → S1-12, S1-13 ×2 แดง · (ข) hold = 0 → S1-12, S1-13 ×2, S1-14, S1-15 แดง · (ค) ใช้ `disabled` แทน aria-disabled → S1-12, S1-13, S1-14 แดง (S1-15 จับไม่ได้ เพราะ jsdom ไม่ blur ปุ่มที่ถูก disabled ต่างจากเบราว์เซอร์) · (ง) ไม่ clearTimeout ตอนปิด → S1-14 ×2 แดง หลังแก้ assertion ให้เช็ก timer ทันทีหลังปิด (รอบแรกจับไม่ได้เพราะเช็กหลัง unmount ซึ่ง cleanup ล้างให้อยู่แล้ว)
 - **สิ่งที่เจอ:** @testing-library/react เดินนาฬิกาปลอมให้เฉพาะของ jest → user-event ค้างกับ fake timers ของ vitest แก้ด้วย `vi.stubGlobal('jest', …)` ใน `src/test/setup.ts` · fake `setImmediate` ทำให้ React ไม่ render (scheduler ใช้ setImmediate ใน Node) → fake เฉพาะ setTimeout/clearTimeout/Date · browser pane: ดับเบิลคลิกห่าง 4 ms และ Enter ×4 ใน 16 ms → สลับครั้งเดียวทั้งคู่ (M-22)
+
+### v2 slice 2 — Undo/Redo (US-15) + ย้อนคำตอบในโหมดตรวจลำดับ (US-9) — สรุป (2026-10-29)
+
+| Commit | เนื้อหา |
+|---|---|
+| `e594d98` | feat(v2): undo/redo history and review-answer undo — reducer `{ present, past, future, dirty }` ใน `useTasks`, `UndoControls`, listener เดียวที่ window ใน `App`, `reviewHistory` + `undo({ redoable: false })`, labels `undo`/`history`/`review.answer*`, MANUAL_QA M-23–M-28 |
+| (commit ถัดจาก `e594d98`) | chore: verify-v2 slice 2 checks and self-test — SLICE_2 (32 ID), V2-15, self-test p/q, CLAUDE.md, DEV_PLAN นี้ |
+
+- **browser pane (dev server, light + dark ที่ 1280×900):** M-23 ✅ (⌘Z ×4 / ⇧⌘Z ×4 / Ctrl+Z / Ctrl+Y ย้อนและทำซ้ำถูกทุกขั้น) · M-24 ส่วนแอป ✅ แต่ native revert ในช่องพิมพ์ตรวจใน pane ไม่ได้ (คีย์สังเคราะห์ของ pane ไม่ทำ editing command ของ Chromium) → รอ PO · M-25 ✅ (ย้อน 3 คู่ทีละคู่ ตอบใหม่ ปิด แล้ว ⌘Z ย้อนเฉพาะการสลับที่ยังอยู่) · M-26 + M-02 ซ้ำ ✅ (⌘Z ขณะยกงานไม่ทำอะไร ลูกศร/Space/Escape ปกติ) · M-27 ✅ (เลิกทำระหว่าง hold คืนคู่ทันที ไม่มีคู่ถัดไปโผล่) · M-28 VoiceOver รอ PO · ปุ่มบนแถบหัว 40px neon/header 16.69:1 ทั้งสองโหมด disabled muted 7.85 (dark) / 2.62 (light, ยกเว้น) · console ไม่มี error
+- **verify-v2:** `--pre-commit --slice 2` 17 ผ่าน (78 ID) · self-test **17/17** (a–q) รวม p (listener นอก App.tsx → V2-15) และ q (AC-15.1 หาย → V2-07) · โหมดปกติหลัง commit: ดู git log ของ commit chore
+
+- **AC ที่มีจริงใน PRD:** US-9 = AC-9.1, 9.2 · US-15 = AC-15.1, 15.2, 15.3, 15.4, 15.5, 15.7, 15.8, 15.9 (ไม่มี 15.6) · ไม่มี AC เรื่อง aria-live หลัง undo/redo → S2-10 ตามที่ PO อนุมัติ · AC-15.2 ครอบ 7 การกระทำที่มีตอนนี้ (6 mutator + สลับจากตรวจลำดับ) ส่วน "แก้ชื่อ/deadline" รอ slice 3–4
+- **เทสต์:** 309 ข้อ (เดิม 265 + slice 2 44) · shuffle 3/3 · build · lint · verify-v2 `--pre-commit` 17/17 (78 ID) · เทสต์เดิมไม่ต้องแก้ assertion ข้อไหน (ReviewMode.test ได้ props ใหม่ใน helper เท่านั้น) · เพิ่ม AC-10.1 กรณี "เลิกทำ enabled" ใน ReviewMode.test
+- **ลองทำโค้ดพัง 6 แบบ จับได้ทั้งหมด:** (ก) undo ของลบคืนงานต่อท้าย → AC-15.1, AC-15.2 · (ข) ไม่ล้าง future → AC-15.5 · (ค) เช็ก `e.key` แทน `e.code` → S2-06, S2-11, AC-9.1, AC-9.2 · (ง) ⌘Z ในโหมดเรียก undo ของงานตรง ๆ → AC-9.1 (⌘Z), S2-16 — S2-13 ไม่แดงเพราะใช้ปุ่ม ไม่ใช่คีย์ลัด · (จ) ไม่กัน aria-pressed → S2-08, S2-10 · (ฉ) guard บันทึกแบบเทียบ reference → S2-21, S2-22
+
+**การตัดสินใจใน slice นี้ (PO):**
+- 2026-10-27 (ใน prompt): snapshot ทั้งก้อนต่อการกระทำ ใน useReducer · ปุ่มในแถบหัวทั้งสองหน้า สไตล์ neon รอง · listener เดียวที่ window เป็นข้อยกเว้นของกฎ "ห้าม document listener" (ห้ามแตะ Escape, V2-15 คุม)
+- 2026-10-28: เลิกทำในโหมด**ไม่สร้าง redo** (`undo({ redoable: false })`) ไม่งั้นตอบใหม่เป็น "บน/ข้าม" แล้ว "ทำซ้ำ" หลังปิดโหมดจะสลับคู่ที่ย้อนไปแล้ว · Tab order ในโหมด = การ์ดก่อน เลิกทำท้ายวง (trap ใช้ลำดับกำหนดเอง ไม่ใช่ DOM)
+- 2026-10-28 (ตอนอนุมัติ): เลิกใช้ guard `tasks === initialTasks.current` → reducer เก็บ `dirty` ไม่งั้น undo กลับถึง snapshot แรกจะไม่บันทึก (S2-21/22 ล็อกไว้)
+- `moveTask(id, direction, reason)` — reason param สำหรับ label "สลับลำดับ" จากโหมดตรวจลำดับ
+- `preventDefault` เฉพาะเมื่อได้ย้อน/ทำซ้ำจริง · Ctrl+Y เท่านั้นที่เป็น redo (Meta+Y ไม่รับ) · ข้อความประกาศซ้ำติดกันอาจไม่ถูกอ่านซ้ำ (ไม่ใส่กลไกพิเศษ)
+
+**สิ่งที่เจอระหว่างทาง:**
+- ปิดฝาเครื่องขณะรันเทสต์: เครื่องหลับ Deep Idle และตื่นทุก 15 นาที (`pmset -g log`) → รันทั้งชุดใช้ 907 วิ โดย CPU 22 วิ และข้อที่ค้างตอนหลับถูกนับ timeout (คนละข้อทุกรอบ) · เปิดฝาแล้ว 309/309 ใน 4.9 วิ · ตัวกันหลับของแอปกันไม่ได้เมื่อปิดฝา
+- oxlint `set-state-in-effect` ที่ `setHeld(null)` ใน effect ของ undoCount → เปลี่ยนเป็นเก็บ `undoCount` ไว้ใน hold แล้วคำนวณว่า hold ยังใช้ได้ไหม
+- S2-02 เขียนผิดตอนแรก (`setup('A')` เพิ่ม A ผ่าน addTask จึงมี entry ติดมา) → seed แทน · S2-17 คาดคู่ผิด (รอบแรกสลับ C ขึ้นเหนือ B) · S2-20 regex จับ `outline-offset-2` เป็นสี → แก้เทสต์ทั้งสาม ไม่ใช่โค้ด
+- live region ของ dnd-kit (`role=status`) อยู่ใน `<main>` ด้วย — เวลาอ่านประกาศของแอปต้องเลือก region ที่ไม่มี role
 
 ### การตัดสินใจของ v2
 
