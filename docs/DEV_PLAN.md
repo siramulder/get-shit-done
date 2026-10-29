@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-10-27 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R) และ hold กันกดซ้ำ deploy แล้ว · ถัดไป slice 2
+อัปเดต: 2026-10-29 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ และ slice 2 (undo/redo) deploy แล้ว · ถัดไป slice 3
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -12,8 +12,8 @@
 |---|---|
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" โดยเฉพาะ M-05 (สัมผัสบนเครื่องจริง) และ M-09 (VoiceOver) |
-| Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
-| v2 | slice 0, slice 1 และ hold กันกดซ้ำ เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · ถัดไป slice 2 (US-15 + US-9 undo/redo) · โหมดตรวจลำดับยังไม่มี undo ในตัว แต่ hold 800 ms ลดการตอบผิดจากกดซ้ำแล้ว |
+| Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · **v2 slice 2 deploy แล้ว 2026-10-29** ที่ `96dd70c` (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js` ตรงกับ build ของ HEAD, ตรวจปุ่มเลิกทำ/ทำซ้ำในแถบหัวและ ⌘Z บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
+| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -55,7 +55,7 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 |---|---|---|---|
 | 0 | US-16 migration + ปลด scope guard + US-17 contrast placeholder | AC-16.1 ถึง 16.4, AC-17.1, S0-01 ถึง S0-10 (+S0-05b) | เสร็จ `f335a93` (docs), `878b6be` (feat), `ae0df0d` (fix), `c68af21` (chore) · deploy 2026-10-20 |
 | 1 | US-6, 7, 8, 10 ตรวจลำดับ | AC-6.1, 6.2, 6.4, AC-7.1–7.6, AC-8.1, AC-10.1–10.3, AC-F1.1, F1.3, S1-01–S1-11 | เสร็จ `77b6bb5`, `d57b686` (R), `c901af9` (feat), `0ee347a` (chore) · deploy 2026-10-25 |
-| 2 | US-15 + US-9 undo/redo | AC-15.1, 15.2, 15.3, 15.4, 15.5, 15.7, 15.8, 15.9, AC-9.1, 9.2, S2-01–S2-22 | เสร็จ (commit แล้ว ยังไม่ push — รอ PO ลองใช้) ดูสรุปด้านล่าง |
+| 2 | US-15 + US-9 undo/redo | AC-15.1, 15.2, 15.3, 15.4, 15.5, 15.7, 15.8, 15.9, AC-9.1, 9.2, S2-01–S2-22 | เสร็จ `e594d98` (feat), `96dd70c` (chore) · deploy แล้ว 2026-10-29 · ดูสรุปด้านล่าง |
 | 3 | US-11, 12, 13 deadline | AC-11.x, AC-12.x, AC-13.x และ AC-6.3 | ยังไม่เริ่ม |
 | 4 | US-14 แก้ชื่อ inline | AC-14.x | ยังไม่เริ่ม |
 | 5 | QA + ทดสอบผู้ใช้ + migration จริง + เอกสาร | G1 ถึง G4 | ยังไม่เริ่ม |
@@ -141,10 +141,10 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 | Commit | เนื้อหา |
 |---|---|
 | `e594d98` | feat(v2): undo/redo history and review-answer undo — reducer `{ present, past, future, dirty }` ใน `useTasks`, `UndoControls`, listener เดียวที่ window ใน `App`, `reviewHistory` + `undo({ redoable: false })`, labels `undo`/`history`/`review.answer*`, MANUAL_QA M-23–M-28 |
-| (commit ถัดจาก `e594d98`) | chore: verify-v2 slice 2 checks and self-test — SLICE_2 (32 ID), V2-15, self-test p/q, CLAUDE.md, DEV_PLAN นี้ |
+| `96dd70c` | chore: verify-v2 slice 2 checks and self-test — SLICE_2 (32 ID), V2-15, self-test p/q, CLAUDE.md, DEV_PLAN นี้ · push + deploy 2026-10-29 (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js`) |
 
-- **browser pane (dev server, light + dark ที่ 1280×900):** M-23 ✅ (⌘Z ×4 / ⇧⌘Z ×4 / Ctrl+Z / Ctrl+Y ย้อนและทำซ้ำถูกทุกขั้น) · M-24 ส่วนแอป ✅ แต่ native revert ในช่องพิมพ์ตรวจใน pane ไม่ได้ (คีย์สังเคราะห์ของ pane ไม่ทำ editing command ของ Chromium) → รอ PO · M-25 ✅ (ย้อน 3 คู่ทีละคู่ ตอบใหม่ ปิด แล้ว ⌘Z ย้อนเฉพาะการสลับที่ยังอยู่) · M-26 + M-02 ซ้ำ ✅ (⌘Z ขณะยกงานไม่ทำอะไร ลูกศร/Space/Escape ปกติ) · M-27 ✅ (เลิกทำระหว่าง hold คืนคู่ทันที ไม่มีคู่ถัดไปโผล่) · M-28 VoiceOver รอ PO · ปุ่มบนแถบหัว 40px neon/header 16.69:1 ทั้งสองโหมด disabled muted 7.85 (dark) / 2.62 (light, ยกเว้น) · console ไม่มี error
-- **verify-v2:** `--pre-commit --slice 2` 17 ผ่าน (78 ID) · self-test **17/17** (a–q) รวม p (listener นอก App.tsx → V2-15) และ q (AC-15.1 หาย → V2-07) · โหมดปกติหลัง commit: ดู git log ของ commit chore
+- **browser pane (dev server, light + dark ที่ 1280×900):** M-23 ✅ (⌘Z ×4 / ⇧⌘Z ×4 / Ctrl+Z / Ctrl+Y ย้อนและทำซ้ำถูกทุกขั้น) · M-24 ส่วนแอป ✅ แต่ native revert ในช่องพิมพ์ตรวจใน pane ไม่ได้ (คีย์สังเคราะห์ของ pane ไม่ทำ editing command ของ Chromium) → PO ลองบน localhost แล้ว ผ่าน (2026-10-29) · M-25 ✅ (ย้อน 3 คู่ทีละคู่ ตอบใหม่ ปิด แล้ว ⌘Z ย้อนเฉพาะการสลับที่ยังอยู่) · M-26 + M-02 ซ้ำ ✅ (⌘Z ขณะยกงานไม่ทำอะไร ลูกศร/Space/Escape ปกติ) · M-27 ✅ (เลิกทำระหว่าง hold คืนคู่ทันที ไม่มีคู่ถัดไปโผล่) · M-28 VoiceOver รอ PO · ปุ่มบนแถบหัว 40px neon/header 16.69:1 ทั้งสองโหมด disabled muted 7.85 (dark) / 2.62 (light, ยกเว้น) · console ไม่มี error
+- **verify-v2:** `--pre-commit --slice 2` 17 ผ่าน (78 ID) · self-test **17/17** (a–q) รวม p (listener นอก App.tsx → V2-15) และ q (AC-15.1 หาย → V2-07) · โหมดปกติหลัง commit `96dd70c`: 18 ผ่าน 0 fail 0 ข้าม
 
 - **AC ที่มีจริงใน PRD:** US-9 = AC-9.1, 9.2 · US-15 = AC-15.1, 15.2, 15.3, 15.4, 15.5, 15.7, 15.8, 15.9 (ไม่มี 15.6) · ไม่มี AC เรื่อง aria-live หลัง undo/redo → S2-10 ตามที่ PO อนุมัติ · AC-15.2 ครอบ 7 การกระทำที่มีตอนนี้ (6 mutator + สลับจากตรวจลำดับ) ส่วน "แก้ชื่อ/deadline" รอ slice 3–4
 - **เทสต์:** 309 ข้อ (เดิม 265 + slice 2 44) · shuffle 3/3 · build · lint · verify-v2 `--pre-commit` 17/17 (78 ID) · เทสต์เดิมไม่ต้องแก้ assertion ข้อไหน (ReviewMode.test ได้ props ใหม่ใน helper เท่านั้น) · เพิ่ม AC-10.1 กรณี "เลิกทำ enabled" ใน ReviewMode.test
@@ -193,7 +193,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - ปุ่ม ↑↓ disabled 1.47:1 (light) / 1.73:1 (dark) หลัง R — WCAG ยกเว้น control ที่ disabled จดไว้ไม่แก้
 - `README.md` ยังเป็นเนื้อหา MVP1 และชี้ไป verify-phase2.sh
 - slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)
-- slice 2: ปุ่ม "เลิกทำ" ในโหมดตรวจลำดับ (AC-9.1) ต้องคืนคู่และตัวนับ — `ReviewState` เป็นค่า immutable ต่อคำตอบ เก็บเป็น stack ได้
+- M-28 (VoiceOver: ⌘Z บนหน้าหลัก และเลิกทำในโหมดตรวจลำดับ) รอ PO · slice 2 push ตามคำสั่ง PO 2026-10-29 โดย M-28 ยังไม่ได้ตรวจ (M-24 PO ลองบน localhost แล้ว ผ่าน)
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
 - Export/Import JSON ตัดออกจาก v2 เพื่อรักษาขนาด เป็น P1 ถัดไป (`Store` มี `schemaVersion` รองรับแล้ว)
 
