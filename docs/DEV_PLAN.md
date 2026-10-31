@@ -11,7 +11,7 @@
 | ส่วน | สถานะ |
 |---|---|
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
-| MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" โดยเฉพาะ M-05 (สัมผัสบนเครื่องจริง) และ M-09 (VoiceOver) |
+| MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" โดยเฉพาะ M-05 (สัมผัสบนเครื่องจริง) · M-09 (VoiceOver) ตัดออกแล้ว |
 | Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · **v2 slice 2 deploy แล้ว 2026-10-29** ที่ `96dd70c` (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js` ตรงกับ build ของ HEAD, ตรวจปุ่มเลิกทำ/ทำซ้ำในแถบหัวและ ⌘Z บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
 | v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
 
@@ -105,7 +105,7 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 - **contrast R (วัดใน browser pane):** ทุกคู่ที่ต้องผ่าน ≥ 4.5:1 ทั้งสองโหมด ต่ำสุด on-neon/hot 5.66 (ตารางเต็มใน MANUAL_QA)
 - **เทสต์:** 256 ข้อ (เดิม 212 + slice 1 44) · ลองทำโค้ดพัง 5 แบบ: (ก) ไม่ swap → แดง 16 ข้อ รวม AC-7.2, 7.4, S1-02 · (ข) เริ่มคู่บนสุด → 26 ข้อ รวม AC-7.1, S1-01 · (ค) ไม่คืน focus → AC-6.4 ×3 · (ง) ซ่อนหน้าหลักด้วย CSS → AC-6.2, AC-10.1, AC-8.1 · (จ) การ์ดล่างคนละสี → S1-10 ×2
 - **verify-v2:** `--slice 1` ตรวจสะสม 42 ID · V2-02 ครอบความบริสุทธิ์ของ `review.ts` · V2-14 ใหม่ (ไม่มี hex/palette ใน components + App — เลือกตรวจที่นี่แทน S1-V1) · self-test 15 กรณี (a–o)
-- **browser pane:** M-17, M-18, M-19, M-20 (375×812 และ 1280×900 ทั้ง light/dark), M-02 ซ้ำ ผ่าน · M-21 VoiceOver รอ PO
+- **browser pane:** M-17, M-18, M-19, M-20 (375×812 และ 1280×900 ทั้ง light/dark), M-02 ซ้ำ ผ่าน · M-21 VoiceOver ตัดออก (PO 2026-10-31)
 
 **การตัดสินใจใน slice นี้ (PO ตอบระหว่างวางแผน):**
 - header ในโหมดตรวจลำดับ = แถบดำ + ชื่อแอปเท่านั้น (ไม่ render ช่องเพิ่มงาน)
@@ -143,7 +143,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 | `e594d98` | feat(v2): undo/redo history and review-answer undo — reducer `{ present, past, future, dirty }` ใน `useTasks`, `UndoControls`, listener เดียวที่ window ใน `App`, `reviewHistory` + `undo({ redoable: false })`, labels `undo`/`history`/`review.answer*`, MANUAL_QA M-23–M-28 |
 | `96dd70c` | chore: verify-v2 slice 2 checks and self-test — SLICE_2 (32 ID), V2-15, self-test p/q, CLAUDE.md, DEV_PLAN นี้ · push + deploy 2026-10-29 (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js`) |
 
-- **browser pane (dev server, light + dark ที่ 1280×900):** M-23 ✅ (⌘Z ×4 / ⇧⌘Z ×4 / Ctrl+Z / Ctrl+Y ย้อนและทำซ้ำถูกทุกขั้น) · M-24 ส่วนแอป ✅ แต่ native revert ในช่องพิมพ์ตรวจใน pane ไม่ได้ (คีย์สังเคราะห์ของ pane ไม่ทำ editing command ของ Chromium) → PO ลองบน localhost แล้ว ผ่าน (2026-10-29) · M-25 ✅ (ย้อน 3 คู่ทีละคู่ ตอบใหม่ ปิด แล้ว ⌘Z ย้อนเฉพาะการสลับที่ยังอยู่) · M-26 + M-02 ซ้ำ ✅ (⌘Z ขณะยกงานไม่ทำอะไร ลูกศร/Space/Escape ปกติ) · M-27 ✅ (เลิกทำระหว่าง hold คืนคู่ทันที ไม่มีคู่ถัดไปโผล่) · M-28 VoiceOver รอ PO · ปุ่มบนแถบหัว 40px neon/header 16.69:1 ทั้งสองโหมด disabled muted 7.85 (dark) / 2.62 (light, ยกเว้น) · console ไม่มี error
+- **browser pane (dev server, light + dark ที่ 1280×900):** M-23 ✅ (⌘Z ×4 / ⇧⌘Z ×4 / Ctrl+Z / Ctrl+Y ย้อนและทำซ้ำถูกทุกขั้น) · M-24 ส่วนแอป ✅ แต่ native revert ในช่องพิมพ์ตรวจใน pane ไม่ได้ (คีย์สังเคราะห์ของ pane ไม่ทำ editing command ของ Chromium) → PO ลองบน localhost แล้ว ผ่าน (2026-10-29) · M-25 ✅ (ย้อน 3 คู่ทีละคู่ ตอบใหม่ ปิด แล้ว ⌘Z ย้อนเฉพาะการสลับที่ยังอยู่) · M-26 + M-02 ซ้ำ ✅ (⌘Z ขณะยกงานไม่ทำอะไร ลูกศร/Space/Escape ปกติ) · M-27 ✅ (เลิกทำระหว่าง hold คืนคู่ทันที ไม่มีคู่ถัดไปโผล่) · M-28 VoiceOver ตัดออก (PO 2026-10-31) · ปุ่มบนแถบหัว 40px neon/header 16.69:1 ทั้งสองโหมด disabled muted 7.85 (dark) / 2.62 (light, ยกเว้น) · console ไม่มี error
 - **verify-v2:** `--pre-commit --slice 2` 17 ผ่าน (78 ID) · self-test **17/17** (a–q) รวม p (listener นอก App.tsx → V2-15) และ q (AC-15.1 หาย → V2-07) · โหมดปกติหลัง commit `96dd70c`: 18 ผ่าน 0 fail 0 ข้าม
 
 - **AC ที่มีจริงใน PRD:** US-9 = AC-9.1, 9.2 · US-15 = AC-15.1, 15.2, 15.3, 15.4, 15.5, 15.7, 15.8, 15.9 (ไม่มี 15.6) · ไม่มี AC เรื่อง aria-live หลัง undo/redo → S2-10 ตามที่ PO อนุมัติ · AC-15.2 ครอบ 7 การกระทำที่มีตอนนี้ (6 mutator + สลับจากตรวจลำดับ) ส่วน "แก้ชื่อ/deadline" รอ slice 3–4
@@ -165,6 +165,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 
 ### การตัดสินใจของ v2
 
+- **ไม่ตรวจด้วย VoiceOver** (PO 2026-10-31): M-09, M-21, M-28 ตัดออกจากรายการตรวจเอง โค้ด a11y (aria-live, ชื่อปุ่ม, focus trap) ยังอยู่และล็อกด้วยเทสต์ตามเดิม
 - **Deadline เป็นป้ายอย่างเดียว** ไม่เรียงลำดับ ไม่เลื่อนงานขึ้นเอง ไม่สะกิด
 - **ตรวจลำดับไล่จากคู่ล่างสุดขึ้นบน** n-1 คำถาม ทุกคำตอบมีผลทันที ข้ามได้ ออกได้ทุกเมื่อ ไม่มีหน้ายืนยัน
 - **Undo ครอบคลุมทุกการกระทำ** ไม่ใช่เฉพาะการลบ เก็บ 50 ขั้น อยู่แค่ใน session
@@ -186,14 +187,13 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 
 ## ค้างอยู่ / จดไว้ไม่แก้
 
-- MANUAL_QA ของ MVP1 ยังรอ PO กรอก M-05 และ M-09 · M-14 (รอบ AC-17.1), M-15, M-16 รอ PO ยืนยัน
+- MANUAL_QA ของ MVP1 ยังรอ PO กรอก M-05 (M-09 ตัดออกแล้ว) · M-14 (รอบ AC-17.1), M-15, M-16 รอ PO ยืนยัน
 - M-16 ผ่านบนเครื่องจริงของ PO แล้ว (2026-10-20) → push และ deploy slice 0 แล้ว
-- M-21 (VoiceOver ในโหมดตรวจลำดับ) รอ PO · slice 1 push ตามคำสั่ง PO 2026-10-25 โดย M-21 ยังไม่ได้ตรวจ · M-22 (hold) ผ่านใน browser pane แต่ยังไม่ได้ลองแตะซ้ำบนโทรศัพท์จริง รอ PO
-- ตอนรีวิว/ตรวจโหมดตรวจลำดับด้วย VoiceOver (M-21): ระหว่าง hold การ์ดเป็น aria-disabled และ live region เงียบ 800 ms ก่อนประกาศคู่ใหม่ — ถ้า PO พบว่า screen reader ควรได้ยิน "เลือก … แล้ว" ทันที ให้เพิ่ม label ใน slice 2
+- M-22 (hold) ผ่านใน browser pane แต่ยังไม่ได้ลองแตะซ้ำบนโทรศัพท์จริง รอ PO
 - ปุ่ม ↑↓ disabled 1.47:1 (light) / 1.73:1 (dark) หลัง R — WCAG ยกเว้น control ที่ disabled จดไว้ไม่แก้
 - `README.md` ยังเป็นเนื้อหา MVP1 และชี้ไป verify-phase2.sh
 - slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)
-- M-28 (VoiceOver: ⌘Z บนหน้าหลัก และเลิกทำในโหมดตรวจลำดับ) รอ PO · slice 2 push ตามคำสั่ง PO 2026-10-29 โดย M-28 ยังไม่ได้ตรวจ (M-24 PO ลองบน localhost แล้ว ผ่าน)
+- slice 2 push ตามคำสั่ง PO 2026-10-29 (M-24 PO ลองบน localhost แล้ว ผ่าน)
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
 - Export/Import JSON ตัดออกจาก v2 เพื่อรักษาขนาด เป็น P1 ถัดไป (`Store` มี `schemaVersion` รองรับแล้ว)
 
