@@ -1,36 +1,24 @@
 @import "tailwindcss";
 
 /* Visual direction R — every colour the UI uses is one of these tokens (see CLAUDE.md "Visual Direction").
-   Tailwind v4 compiles bg-paper / text-ink / … to var(--color-*), so dark mode only has to swap the variables. */
+   The app is dark only (PO 2026-11-02): one token set, no media-query theme switch, no light theme (verify-v2 V2-16). */
 @theme static {
   --font-sans: "Chakra Petch", system-ui, sans-serif;
-  --color-paper: #ffffff;
-  --color-surface: #ffffff;
-  --color-ink: #0a0a0a;
-  --color-muted: #4b5563;
-  --color-line: #0a0a0a;
-  --color-disabled: #d1d5db;
+  --color-paper: #0a0a0a;
+  --color-surface: #171717;
+  --color-ink: #f5f5f5;
+  --color-muted: #a3a3a3;
+  --color-line: #a3a3a3;
+  --color-disabled: #404040;
   --color-header: #0a0a0a;
-  --color-header-line: #0a0a0a;
+  --color-header-line: #262626;
   --color-neon: #c6ff00;
   --color-on-neon: #0a0a0a;
   --color-hot: #ff2e88;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-paper: #0a0a0a;
-    --color-surface: #171717;
-    --color-ink: #f5f5f5;
-    --color-muted: #a3a3a3;
-    --color-line: #a3a3a3;
-    --color-disabled: #404040;
-    --color-header-line: #262626;
-  }
-}
-
 body {
   margin: 0;
-  color-scheme: light dark;
+  color-scheme: dark;
   line-height: 1.55;
 }

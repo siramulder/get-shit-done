@@ -64,7 +64,7 @@ type Store = { schemaVersion: 2; tasks: Task[] };
 - If anything was discarded, first save the raw string to `task-priority-app:tasks:corrupt-backup` (latest overwrites); clean data never writes a backup.
 
 ## v2 Scope — IN
-Pairwise ordering review (one button, bottom-up, n-1 questions, skippable, exit anytime), optional deadline shown as a label only, inline title editing, undo/redo across every action, schema v2 + migration, light-mode contrast fix.
+Pairwise ordering review (one button, bottom-up, n-1 questions, skippable, exit anytime), optional deadline shown as a label only, inline title editing, undo/redo across every action, schema v2 + migration, placeholder contrast fix.
 
 ## v2 Scope — OUT (do NOT build)
 Sorting or auto-promoting by deadline, nudges to move overdue tasks up, pairwise comparison on add, auto-prompting the review at the start of a day, time-of-day in deadlines, recurring tasks, notifications, tags/categories/subtasks/notes, touch dragging, login/cloud sync/sharing, export/import JSON.
@@ -86,14 +86,15 @@ If a task seems to need any of these, stop and ask instead of implementing.
 - Delete is immediate: no confirm dialog, never `window.confirm`.
 - UI text in Thai unless told otherwise.
 
-## Visual Direction (R — neon on white)
-- Mood: a highlighter on paper. Calm white page, black ink, and neon used only where it means something.
-- Two neon hues only, plus black/white/gray. Every color has one job:
+## Visual Direction (R — neon on black, dark only)
+- The app is **dark only** (PO decision 2026-11-02): one token set, `color-scheme: dark`, no `prefers-color-scheme` media query and no `dark:` variants anywhere (`scripts/verify-v2.sh` V2-16). The OS theme never changes the app.
+- Mood: a highlighter on black paper. Calm near-black page, near-white ink, and neon used only where it means something.
+- Two neon hues only, plus black/near-white/gray. Every color has one job:
   - neon (lime) = the app and deciding: header title, primary buttons, "ตรวจลำดับ", both review cards
   - hot (pink) = time that needs attention: overdue badge fill, the dot in the "today" badge
   - everything else is ink, paper, or muted gray; done tasks are muted gray + strikethrough
-- Neon is only ever a fill. Text on neon is always ink (#0a0a0a) in both themes. Neon text appears only on ink backgrounds (the header title, the skip button). Never neon text on paper.
-  - "Ink background" means the `header` token (black in both themes), not `bg-ink`: `ink` turns near-white in dark mode, where neon on it reads at 1.09:1. The skip button is `bg-header text-neon border-2 border-ink`.
+- Neon is only ever a fill. Text on neon is always `on-neon` (#0a0a0a). Neon text appears only on black backgrounds (the header title, the skip button). Never neon text on paper.
+  - "Black background" means the `header` token, not `bg-ink`: `ink` is near-white (#f5f5f5), where neon on it reads at 1.09:1. The skip button is `bg-header text-neon border-2 border-ink`.
   - Focus rings are ink, except controls on the black header bar, which use a neon ring (ink is invisible there).
   - Secondary buttons on the header bar ("เลิกทำ", "ทำซ้ำ"): neon text + 2px neon border on a transparent fill; disabled = muted text + muted border. This is the other place neon text is allowed, because the header is always black.
 - Both review cards always use the same color, so color never favors one answer.
@@ -101,21 +102,21 @@ If a task seems to need any of these, stop and ask instead of implementing.
 - All colors come from tokens in src/index.css. Components never contain hex values or Tailwind palette colors (gray-500 etc.).
 - Font: Chakra Petch 500/600/700 (Google Fonts link in index.html), fallback system-ui, sans-serif; line-height 1.55.
 
-Tokens (declared in `src/index.css` with `@theme static` — `static` keeps tokens no class uses yet, e.g. `hot`; dark values switch on `prefers-color-scheme`; use as `bg-paper`, `text-ink`, `bg-neon` … with no `dark:` variants). `scripts/verify-v2.sh` V2-14 fails on any hex or Tailwind palette colour in `src/components` or `src/App.tsx`:
+Tokens (declared in `src/index.css` with `@theme static` — `static` keeps tokens no class uses yet, e.g. `hot`; one value per token, use as `bg-paper`, `text-ink`, `bg-neon` … never with `dark:` variants). `scripts/verify-v2.sh` V2-14 fails on any hex or Tailwind palette colour in `src/components` or `src/App.tsx`:
 
-| token | light | dark | used for |
-|---|---|---|---|
-| paper | #ffffff | #0a0a0a | page background |
-| surface | #ffffff | #171717 | task rows, text box |
-| ink | #0a0a0a | #f5f5f5 | main text, borders, focus ring |
-| muted | #4b5563 | #a3a3a3 | secondary text, placeholder, done tasks |
-| line | #0a0a0a | #a3a3a3 | 2px row borders |
-| disabled | #d1d5db | #404040 | disabled ↑↓ buttons |
-| header | #0a0a0a | #0a0a0a | app header bar |
-| header-line | #0a0a0a | #262626 | 2px line under the header (visible in dark only) |
-| neon | #c6ff00 | #c6ff00 | see the rules above |
-| on-neon | #0a0a0a | #0a0a0a | text on neon and on hot |
-| hot | #ff2e88 | #ff2e88 | see the rules above |
+| token | value | used for |
+|---|---|---|
+| paper | #0a0a0a | page background |
+| surface | #171717 | task rows, text box |
+| ink | #f5f5f5 | main text, borders, focus ring |
+| muted | #a3a3a3 | secondary text, placeholder, done tasks |
+| line | #a3a3a3 | 2px row borders |
+| disabled | #404040 | disabled ↑↓ buttons |
+| header | #0a0a0a | app header bar |
+| header-line | #262626 | 2px line under the header |
+| neon | #c6ff00 | see the rules above |
+| on-neon | #0a0a0a | text on neon and on hot |
+| hot | #ff2e88 | see the rules above |
 
 ## Testing Conventions
 - Put the requirement ID in the test name — v2 uses the AC ids from `docs/PRD-v2.md` (e.g. `it('AC-7.2 swaps the pair and advances', …)`); MVP1 tests keep their P1-xx / P2-xx ids.

@@ -67,8 +67,8 @@ describe('TaskInput', () => {
   })
 
   // jsdom cannot resolve Tailwind colours, so this only pins the token class. The real contrast of the
-  // `muted` token (≥ 4.5:1 on `surface` in light and dark) is measured in the browser: docs/MANUAL_QA.md M-14.
-  it('AC-17.1 placeholder uses the muted token, which reads at 4.5:1 on the surface in both themes', () => {
+  // `muted` token (≥ 4.5:1 on `surface`; the app is dark only) is measured in the browser: docs/MANUAL_QA.md M-14, M-29.
+  it('AC-17.1 placeholder uses the muted token, which reads at 4.5:1 on the surface', () => {
     const { input } = setup()
     const classes = input.className.split(/\s+/)
     expect(classes.filter((c) => c.includes('placeholder:'))).toEqual(['placeholder:text-muted'])

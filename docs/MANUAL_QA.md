@@ -49,6 +49,16 @@ M-15 และ M-16 (v2 slice 0) ตรวจเมื่อ 2026-10-19 ที�
 
 หมายเหตุ: ต้องใช้ `@theme static` ใน `src/index.css` ไม่งั้น Tailwind v4 ตัด token ที่ยังไม่มี class ใช้ (เช่น `hot`) ออกจาก CSS
 
+## Dark only — ไม่มี light mode (PO 2026-11-02, browser pane, dev server)
+
+ตั้งแต่ commit `style: dark mode only` แอปใช้ token ชุดเดียว (ค่าชุด dark เดิม) ไม่มี `@media (prefers-color-scheme)` และ `color-scheme: dark` ดังนั้นคอลัมน์ "light" ในตารางด้านบนและข้อ M-14/M-15/M-20/M-22/M-23 ที่พูดถึง light เป็นประวัติ ไม่ต้องตรวจซ้ำ
+
+| ID | ขั้นตอน | ผ่านเมื่อ | ประเภทหลักฐาน | ผลที่ Claude ทำ | ผลที่ PO ตรวจ |
+|---|---|---|---|---|---|
+| M-29 | จำลอง `prefers-color-scheme: light` ของเครื่อง แล้วเปิดหน้าหลัก (3 todo + 1 เสร็จวันนี้) และโหมดตรวจลำดับ ที่ 1280×900 และ 375×812 · วัด contrast ทุกคู่ token และ placeholder จริง · CSS ที่ build ต้องไม่มี `prefers-color-scheme` | แอปยังเป็นสีชุด dark ทั้งหมดแม้เครื่องเป็น light · ทุกคู่ที่ไม่ใช่ control disabled ≥ 4.5:1 · ไม่มี box-shadow · console ว่าง | browser pane + จำลอง (colorScheme light) + วัด contrast ตาม WCAG | ✅ matchMedia บอก light แต่ `color-scheme` ของ body = dark, พื้นหน้า rgb(10,10,10) ทั้งสองขนาด · token: ink/paper 18.16 · ink/surface 16.44 · muted/paper 7.85 · muted/surface (placeholder จริง rgb 163,163,163 บน rgb 23,23,23) 7.11 · on-neon/neon 16.69 · on-neon/hot 5.66 · neon/header 16.69 · line/surface 7.11 · disabled/surface 1.73 (control disabled — จดไว้) · header-line/header 1.31 (เส้นตกแต่ง ไม่ใช่ข้อความ) · โหมดตรวจลำดับที่ 375px: การ์ด on-neon/neon 16.69, ข้าม neon/header 16.69, ไม่มี box-shadow, scrollWidth = 375 · `dist/assets/*.css` ไม่มี `prefers-color-scheme` (0 แห่ง) · console ไม่มี error | |
+
+หมายเหตุ: Tailwind v4 สแกนทุกไฟล์ในโปรเจกต์หา class — สตริง `dark:` ที่เขียนไว้ตรง ๆ แม้ใน `scripts/` จะถูกสร้างเป็น utility พร้อม media query ในบันเดิล (เจอตอนเขียน self-test กรณี s จึงประกอบสตริงตอนรันแทน)
+
 ## v2 slice 1 — โหมดตรวจลำดับ (2026-10-25, browser pane, dev server)
 
 | ID | ขั้นตอน | ผ่านเมื่อ | ประเภทหลักฐาน | ผลที่ Claude ทำ | ผลที่ PO ตรวจ |
