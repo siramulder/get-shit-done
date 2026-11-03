@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-10-29 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ และ slice 2 (undo/redo) deploy แล้ว · ถัดไป slice 3
+อัปเดต: 2026-11-02 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ และ slice 2 (undo/redo) deploy แล้ว · dark mode only commit แล้ว (ยังไม่ push) · ถัดไป slice 3
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -13,7 +13,7 @@
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" · M-05 (โทรศัพท์) และ M-09 (VoiceOver) ตัดออกแล้ว |
 | Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · **v2 slice 2 deploy แล้ว 2026-10-29** ที่ `96dd70c` (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js` ตรงกับ build ของ HEAD, ตรวจปุ่มเลิกทำ/ทำซ้ำในแถบหัวและ ⌘Z บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
-| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
+| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) commit `e747fe7` style + chore verify-v2 V2-16 — ยังไม่ push · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -163,9 +163,23 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - S2-02 เขียนผิดตอนแรก (`setup('A')` เพิ่ม A ผ่าน addTask จึงมี entry ติดมา) → seed แทน · S2-17 คาดคู่ผิด (รอบแรกสลับ C ขึ้นเหนือ B) · S2-20 regex จับ `outline-offset-2` เป็นสี → แก้เทสต์ทั้งสาม ไม่ใช่โค้ด
 - live region ของ dnd-kit (`role=status`) อยู่ใน `<main>` ด้วย — เวลาอ่านประกาศของแอปต้องเลือก region ที่ไม่มี role
 
+### Dark mode only — ไม่มี light mode — สรุป (2026-11-02)
+
+| Commit | เนื้อหา |
+|---|---|
+| `e747fe7` | style: dark mode only — `src/index.css` เหลือ token ชุดเดียว (ค่าชุด dark เดิม) ตัด `@media (prefers-color-scheme: dark)`, `color-scheme: dark` · CLAUDE.md หัวข้อ Visual Direction เป็น "neon on black, dark only" ตาราง token คอลัมน์เดียว · PRD-v2 US-17/AC-17.1 และ AC-12.4 ถ้อยคำเป็น dark (ID คง) · คำบรรยายเทสต์ AC-17.1 แก้ให้ตรง (ID คง) · MANUAL_QA M-29 |
+| chore: verify-v2 adds V2-16 dark-only check | V2-16: ไม่มี `prefers-color-scheme` และไม่มี `dark:` variant ใน src (รวม .css) · self-test เพิ่มกรณี r (media query ใน index.css) และ s (`dark:` ใน component) รวม 19 กรณี · DEV_PLAN |
+
+- **ที่มา:** PO 2026-11-02 "dark mode only ไม่มี light mode" ตอบคำถาม: ใช้ค่าชุด dark ที่มีอยู่, ขอบเขต = โค้ด + เอกสาร + ตัวตรวจ
+- **ผล:** 309/309, shuffle 3/3, build, lint, verify-v2 --pre-commit 18 ผ่าน 0 fail (V2-16 ใหม่) · browser pane M-29: จำลอง OS เป็น light แอปยังดำ ทุกคู่สี (ยกเว้น control disabled) ≥ 4.5:1 เท่าค่า dark เดิม ทั้ง 1280×900 และ 375×812 รวมโหมดตรวจลำดับ · CSS ที่ build ไม่มี `prefers-color-scheme`
+- **สิ่งที่เจอ:** V2-16 จับคอมเมนต์ของตัวเองใน index.css ที่มีคำว่า prefers-color-scheme (พิสูจน์ว่าตัวตรวจทำงาน) → เปลี่ยนถ้อยคำ · Tailwind v4 สแกนทุกไฟล์ในโปรเจกต์ สตริง `dark:text-ink` ที่เขียนตรง ๆ ใน self-test ทำให้บันเดิลมี `.dark\:text-ink` พร้อม media query → self-test ประกอบสตริงตอนรันแทน
+- **ไม่เปลี่ยน:** โค้ด component ทุกตัว (ไม่มี `dark:` อยู่แล้ว), เทสต์ทุกข้อ (แก้แค่คำบรรยาย AC-17.1), token neon/on-neon/hot
+- **ผลข้างเคียงกับเอกสารเก่า:** คอลัมน์ light ใน MANUAL_QA (ตาราง contrast R, M-14, M-15, M-20, M-22, M-23) และ "contrast light mode" ใน slice 0 เป็นประวัติ ไม่ต้องตรวจซ้ำ
+
 ### การตัดสินใจของ v2
 
 - **ไม่ตรวจด้วย VoiceOver** (PO 2026-10-31): M-09, M-21, M-28 ตัดออกจากรายการตรวจเอง โค้ด a11y (aria-live, ชื่อปุ่ม, focus trap) ยังอยู่และล็อกด้วยเทสต์ตามเดิม
+- **Dark mode only** (PO 2026-11-02): ไม่มี light mode แอปไม่ตาม `prefers-color-scheme` ของเครื่อง token ชุดเดียว = ค่าชุด dark เดิม · verify-v2 V2-16 กัน media query และ `dark:` variant กลับเข้ามา
 - **ไม่ตรวจบนโทรศัพท์** (PO 2026-10-31: ไม่ใช่งานบนโทรศัพท์): M-05 และส่วนแตะซ้ำบนโทรศัพท์ของ M-22 ตัดออกจากรายการตรวจเอง · layout 375px, ปุ่ม ≥ 40px และ touch-action คงไว้ตามเดิม ไม่เปลี่ยนโค้ด
 - **Deadline เป็นป้ายอย่างเดียว** ไม่เรียงลำดับ ไม่เลื่อนงานขึ้นเอง ไม่สะกิด
 - **ตรวจลำดับไล่จากคู่ล่างสุดขึ้นบน** n-1 คำถาม ทุกคำตอบมีผลทันที ข้ามได้ ออกได้ทุกเมื่อ ไม่มีหน้ายืนยัน
@@ -191,10 +205,11 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - MANUAL_QA ของ MVP1: M-05 (โทรศัพท์) และ M-09 (VoiceOver) ตัดออกแล้ว · M-14 (รอบ AC-17.1), M-15, M-16 รอ PO ยืนยัน
 - M-16 ผ่านบนเครื่องจริงของ PO แล้ว (2026-10-20) → push และ deploy slice 0 แล้ว
 - M-22 (hold) ผ่านใน browser pane · ไม่ตรวจบนโทรศัพท์ (PO 2026-10-31)
-- ปุ่ม ↑↓ disabled 1.47:1 (light) / 1.73:1 (dark) หลัง R — WCAG ยกเว้น control ที่ disabled จดไว้ไม่แก้
+- ปุ่ม ↑↓ disabled 1.73:1 (dark only ตั้งแต่ 2026-11-02) — WCAG ยกเว้น control ที่ disabled จดไว้ไม่แก้
 - `README.md` ยังเป็นเนื้อหา MVP1 และชี้ไป verify-phase2.sh
 - slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)
 - slice 2 push ตามคำสั่ง PO 2026-10-29 (M-24 PO ลองบน localhost แล้ว ผ่าน)
+- dark mode only (`e747fe7` + chore) และ docs 2 commit (`e60a672`, `b58161c`) ยังไม่ push รอ PO สั่ง
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
 - Export/Import JSON ตัดออกจาก v2 เพื่อรักษาขนาด เป็น P1 ถัดไป (`Store` มี `schemaVersion` รองรับแล้ว)
 

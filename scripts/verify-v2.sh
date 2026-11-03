@@ -257,6 +257,13 @@ report_scan "V2-14" "no hex colours or Tailwind palette colour classes in src/co
   "a hex colour or a Tailwind palette colour was found — use the tokens in src/index.css (CLAUDE.md, Visual Direction)" \
   "$COMPONENTS_AND_APP" '#[0-9a-fA-F]{3,8}\b|\b(?:[a-z-]+:)*(?:bg|text|border|outline|ring|placeholder|from|to|via|fill|stroke|decoration|accent|caret|divide|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b|\b(?:[a-z-]+:)*(?:bg|text|border)-(?:white|black)\b' ''
 
+# Dark only (PO 2026-11-02): no prefers-color-scheme media query and no dark: variants anywhere under src.
+V216_FILES="$TMP_DIR/v216-files"
+{ cat "$NON_TEST"; find src -type f -name '*.css' | LC_ALL=C sort; } > "$V216_FILES"
+report_scan "V2-16" "no prefers-color-scheme or dark: variant under src — the app is dark only (one token set)" \
+  "a light/dark switch was found — the app is dark only: one token set in src/index.css, no media query, no dark: variants" \
+  "$V216_FILES" 'prefers-color-scheme|(^|[^\w-])dark:' ''
+
 # The undo/redo shortcut listener is the one allowed global listener: only in src/App.tsx, only 'keydown',
 # and that file must not handle Escape (review mode owns Escape on its own element).
 V215="$(node -e '
@@ -406,12 +413,12 @@ fi
 
 echo
 echo "=== ต้องตรวจเอง (ไม่ได้ตรวจอัตโนมัติ) ==="
-echo "  M-14 contrast ของ placeholder ใน light และ dark (AC-17.1: เทสต์ตรวจได้แค่ class ตัวเลขจริงต้องวัดในเบราว์เซอร์)"
-echo "  M-15 ข้อมูล schemaVersion 3 → เห็นข้อความ ช่องเพิ่มงาน disabled อ่านออกทั้ง light/dark"
+echo "  M-14/M-29 contrast ของ placeholder และทุกคู่สี (AC-17.1: เทสต์ตรวจได้แค่ class ตัวเลขจริงต้องวัดในเบราว์เซอร์ · แอปเป็น dark เท่านั้น)"
+echo "  M-15 ข้อมูล schemaVersion 3 → เห็นข้อความ ช่องเพิ่มงาน disabled อ่านออก"
 echo "  M-16 localStorage ของ MVP1 จริง → งานครบ ลำดับเดิม → กด 1 ครั้ง → refresh ยังครบ"
-echo "  M-17–M-21 โหมดตรวจลำดับ: 375px, คีย์บอร์ดล้วน, เมาส์ 6 งาน + reload, light/dark ที่ 375px และ 1280×900, VoiceOver (รอ PO)"
+echo "  M-17–M-20 โหมดตรวจลำดับ: 375px, คีย์บอร์ดล้วน, เมาส์ 6 งาน + reload, 375px และ 1280×900 (M-21 VoiceOver ตัดออก)"
 echo "  M-02 ซ้ำ: Escape ของการลากด้วยคีย์บอร์ดยังยกเลิกได้หลังเปิด-ปิดโหมดตรวจลำดับ"
-echo "  M-23–M-28 undo/redo: คีย์ลัดทั้ง 4 แบบ, native undo ในช่องพิมพ์, ย้อนคำตอบในโหมด, ⌘Z ขณะยกงาน, เลิกทำระหว่าง hold, VoiceOver (รอ PO)"
+echo "  M-23–M-27 undo/redo: คีย์ลัดทั้ง 4 แบบ, native undo ในช่องพิมพ์, ย้อนคำตอบในโหมด, ⌘Z ขณะยกงาน, เลิกทำระหว่าง hold (M-28 VoiceOver ตัดออก)"
 echo "  ⚠ V2-10 และ V2-11 ที่ผ่าน ไม่ได้แปลว่า M-10 (console สะอาด) ผ่าน — ต้องเปิด DevTools ดูเอง"
 echo "  ⚠ ทุกครั้งที่แก้ส่วนลากวาง ต้องตรวจ M-01, M-02, M-03, M-11 ใหม่ (ดู docs/MANUAL_QA.md)"
 

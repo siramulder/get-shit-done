@@ -7,7 +7,7 @@ set -o pipefail
 cd "$(dirname "$0")/.." || { echo "FATAL: cannot cd to project root"; exit 2; }
 ROOT="$(pwd)"
 VERIFY="scripts/verify-v2.sh"
-TARGET_IDS="V2-01 V2-02 V2-03 V2-04 V2-05 V2-06 V2-07 V2-08 V2-09 V2-13 V2-14 V2-15"
+TARGET_IDS="V2-01 V2-02 V2-03 V2-04 V2-05 V2-06 V2-07 V2-08 V2-09 V2-13 V2-14 V2-15 V2-16"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/verify-v2-selftest.XXXXXX")" || { echo "FATAL: mktemp failed"; exit 2; }
 COPY="$WORK/project"
@@ -108,6 +108,10 @@ export type Answer"; }
 mutate_o() { replace_text src/components/EmptyState.tsx 'text-muted' 'text-gray-500'; }
 mutate_p() { append_line src/components/ReviewMode.tsx "document.addEventListener('keydown', () => {})"; }
 mutate_q() { rename_id 'AC-15.1' 'AC-15.X'; }
+mutate_r() { append_line src/index.css '@media (prefers-color-scheme: light) { :root { --color-paper: #ffffff; } }'; }
+# Built at run time so Tailwind's source scan never sees a literal dark-variant class in this repo.
+DARK_VARIANT='dark'; DARK_VARIANT="$DARK_VARIANT:text-ink"
+mutate_s() { replace_text src/components/EmptyState.tsx 'text-muted' "text-muted $DARK_VARIANT"; }
 
 # run_case <letter> <expected-id> <description> <mutation> [<text the evidence lines (not the FAIL headline) must contain>]
 run_case() {
@@ -152,6 +156,8 @@ run_case n "V2-02" "import { loadStore } ใน lib/review.ts"            mutate
 run_case o "V2-14" "ใส่ text-gray-500 ใน component"                    mutate_o "text-gray-500"
 run_case p "V2-15" "ใส่ document.addEventListener('keydown') ใน ReviewMode" mutate_p "ReviewMode.tsx"
 run_case q "V2-07" "เปลี่ยนชื่อเทสต์ให้ AC-15.1 หายไป"                 mutate_q "AC-15.1"
+run_case r "V2-16" "ใส่ @media (prefers-color-scheme: light) ใน index.css" mutate_r "src/index.css"
+run_case s "V2-16" "ใส่ $DARK_VARIANT ใน component"                    mutate_s "$DARK_VARIANT"
 
 echo
 echo "== 3. Results =="
