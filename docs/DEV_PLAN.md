@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-11-02 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ และ slice 2 (undo/redo) deploy แล้ว · dark mode only commit แล้ว (ยังไม่ push) · ถัดไป slice 3
+อัปเดต: 2026-11-04 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ, slice 2 (undo/redo) และ dark mode only deploy แล้ว · V2-17 (`3486359`) + docs ยังไม่ push · ถัดไป slice 3
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -13,7 +13,7 @@
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" · M-05 (โทรศัพท์) และ M-09 (VoiceOver) ตัดออกแล้ว |
 | Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · **v2 slice 2 deploy แล้ว 2026-10-29** ที่ `96dd70c` (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js` ตรงกับ build ของ HEAD, ตรวจปุ่มเลิกทำ/ทำซ้ำในแถบหัวและ ⌘Z บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
-| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) commit `e747fe7` style + chore verify-v2 V2-16 — ยังไม่ push · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
+| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) `e747fe7` style + `8ce8887` chore deploy แล้ว 2026-11-04 (workflow 41812662971) · `3486359` chore V2-17 ตรวจ CSS ที่ build — ยังไม่ push · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -168,18 +168,22 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 | Commit | เนื้อหา |
 |---|---|
 | `e747fe7` | style: dark mode only — `src/index.css` เหลือ token ชุดเดียว (ค่าชุด dark เดิม) ตัด `@media (prefers-color-scheme: dark)`, `color-scheme: dark` · CLAUDE.md หัวข้อ Visual Direction เป็น "neon on black, dark only" ตาราง token คอลัมน์เดียว · PRD-v2 US-17/AC-17.1 และ AC-12.4 ถ้อยคำเป็น dark (ID คง) · คำบรรยายเทสต์ AC-17.1 แก้ให้ตรง (ID คง) · MANUAL_QA M-29 |
-| chore: verify-v2 adds V2-16 dark-only check | V2-16: ไม่มี `prefers-color-scheme` และไม่มี `dark:` variant ใน src (รวม .css) · self-test เพิ่มกรณี r (media query ใน index.css) และ s (`dark:` ใน component) รวม 19 กรณี · DEV_PLAN |
+| `8ce8887` | chore: verify-v2 adds V2-16 dark-only check — V2-16: ไม่มี `prefers-color-scheme` และไม่มี `dark:` variant ใน src (รวม .css) · self-test เพิ่มกรณี r (media query ใน index.css) และ s (`dark:` ใน component) รวม 19 กรณี · DEV_PLAN |
+| `3486359` | chore: verify-v2 adds V2-17 built-CSS dark-only check — หลัง build ตรวจ `dist/assets/*.css` ว่าไม่มี `prefers-color-scheme` และไม่มี utility ของ variant `dark` · self-test กรณี t (สตริงนั้นใน docs/DEV_PLAN.md นอก src) รวม 20 กรณี |
+| docs: record dark-only deployment | DEV_PLAN (บันทึกนี้), MANUAL_QA M-29 บนเว็บจริง, ลบสตริงต้นเหตุใน DEV_PLAN |
 
 - **ที่มา:** PO 2026-11-02 "dark mode only ไม่มี light mode" ตอบคำถาม: ใช้ค่าชุด dark ที่มีอยู่, ขอบเขต = โค้ด + เอกสาร + ตัวตรวจ
 - **ผล:** 309/309, shuffle 3/3, build, lint, verify-v2 --pre-commit 18 ผ่าน 0 fail (V2-16 ใหม่) · browser pane M-29: จำลอง OS เป็น light แอปยังดำ ทุกคู่สี (ยกเว้น control disabled) ≥ 4.5:1 เท่าค่า dark เดิม ทั้ง 1280×900 และ 375×812 รวมโหมดตรวจลำดับ · CSS ที่ build ไม่มี `prefers-color-scheme`
-- **สิ่งที่เจอ:** V2-16 จับคอมเมนต์ของตัวเองใน index.css ที่มีคำว่า prefers-color-scheme (พิสูจน์ว่าตัวตรวจทำงาน) → เปลี่ยนถ้อยคำ · Tailwind v4 สแกนทุกไฟล์ในโปรเจกต์ สตริง `dark:text-ink` ที่เขียนตรง ๆ ใน self-test ทำให้บันเดิลมี `.dark\:text-ink` พร้อม media query → self-test ประกอบสตริงตอนรันแทน
+- **สิ่งที่เจอ:** V2-16 จับคอมเมนต์ของตัวเองใน index.css ที่มีคำว่า prefers-color-scheme (พิสูจน์ว่าตัวตรวจทำงาน) → เปลี่ยนถ้อยคำ · Tailwind v4 สแกนทุกไฟล์ในโปรเจกต์ สตริง `dark` + `:text-ink` ที่เขียนติดกันตรง ๆ ใน self-test ทำให้บันเดิลมี utility นั้นพร้อม media query → self-test ประกอบสตริงตอนรันแทน (ห้ามเขียนติดกันที่ไหนในรีโป แม้ในเอกสาร — ดู V2-17)
 - **ไม่เปลี่ยน:** โค้ด component ทุกตัว (ไม่มี `dark:` อยู่แล้ว), เทสต์ทุกข้อ (แก้แค่คำบรรยาย AC-17.1), token neon/on-neon/hot
+- **Deploy (2026-11-04, PO สั่ง push):** push 4 commit (`e60a672`, `b58161c`, `e747fe7`, `8ce8887`) — ครั้งแรก GitHub ตอบ Internal Server Error (remote rejected) ครั้งที่สองผ่าน → workflow 41812662971 สำเร็จ → เว็บจริงได้ `index-CKFgJaml.js` / `index-Dxo9ufxp.css` เท่ากับ build ในเครื่องทุกไบต์ · browser pane บนเว็บจริง จำลอง OS light: พื้น rgb(10,10,10), `color-scheme` dark, h1 neon, console ว่าง
+- **เจอหลัง deploy:** CSS บนเว็บจริงมี utility ของ variant `dark` (ชื่อ `text-ink`) ใต้ `@media (prefers-color-scheme: dark)` 1 rule — ไม่มี element ใช้ (0 ตัว) แอปยังดำ แต่ขัดกับที่ M-29 บันทึกว่า "0 แห่ง" (ตัวเลขนั้นวัดก่อนเขียน DEV_PLAN) ต้นเหตุคือบรรทัด "สิ่งที่เจอ" ด้านบนใน DEV_PLAN นี้เองที่เคยเขียนสตริง class นั้นติดกัน Tailwind จึงสแกนเจอ → แก้ถ้อยคำ + เพิ่ม **V2-17** ตรวจ `dist/assets/*.css` หลัง build ทุกครั้ง (`3486359`) build ใหม่ไม่มี media query (0 แห่ง) · ยังไม่ push — push แล้วเว็บจริงจะได้ CSS ที่ไม่มี rule ค้าง
 - **ผลข้างเคียงกับเอกสารเก่า:** คอลัมน์ light ใน MANUAL_QA (ตาราง contrast R, M-14, M-15, M-20, M-22, M-23) และ "contrast light mode" ใน slice 0 เป็นประวัติ ไม่ต้องตรวจซ้ำ
 
 ### การตัดสินใจของ v2
 
 - **ไม่ตรวจด้วย VoiceOver** (PO 2026-10-31): M-09, M-21, M-28 ตัดออกจากรายการตรวจเอง โค้ด a11y (aria-live, ชื่อปุ่ม, focus trap) ยังอยู่และล็อกด้วยเทสต์ตามเดิม
-- **Dark mode only** (PO 2026-11-02): ไม่มี light mode แอปไม่ตาม `prefers-color-scheme` ของเครื่อง token ชุดเดียว = ค่าชุด dark เดิม · verify-v2 V2-16 กัน media query และ `dark:` variant กลับเข้ามา
+- **Dark mode only** (PO 2026-11-02): ไม่มี light mode แอปไม่ตาม `prefers-color-scheme` ของเครื่อง token ชุดเดียว = ค่าชุด dark เดิม · verify-v2 V2-16 กัน media query และ `dark:` variant ใน src · V2-17 ตรวจ CSS ที่ build จริง (Tailwind สแกนทุกไฟล์ในรีโป ห้ามเขียน class ของ variant `dark` ติดกันที่ไหนเลย แม้ในเอกสาร)
 - **ไม่ตรวจบนโทรศัพท์** (PO 2026-10-31: ไม่ใช่งานบนโทรศัพท์): M-05 และส่วนแตะซ้ำบนโทรศัพท์ของ M-22 ตัดออกจากรายการตรวจเอง · layout 375px, ปุ่ม ≥ 40px และ touch-action คงไว้ตามเดิม ไม่เปลี่ยนโค้ด
 - **Deadline เป็นป้ายอย่างเดียว** ไม่เรียงลำดับ ไม่เลื่อนงานขึ้นเอง ไม่สะกิด
 - **ตรวจลำดับไล่จากคู่ล่างสุดขึ้นบน** n-1 คำถาม ทุกคำตอบมีผลทันที ข้ามได้ ออกได้ทุกเมื่อ ไม่มีหน้ายืนยัน
@@ -209,7 +213,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - `README.md` ยังเป็นเนื้อหา MVP1 และชี้ไป verify-phase2.sh
 - slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)
 - slice 2 push ตามคำสั่ง PO 2026-10-29 (M-24 PO ลองบน localhost แล้ว ผ่าน)
-- dark mode only (`e747fe7` + chore) และ docs 2 commit (`e60a672`, `b58161c`) ยังไม่ push รอ PO สั่ง
+- dark mode only deploy แล้ว 2026-11-04 (workflow 41812662971) · chore `3486359` (V2-17) + docs commit หลัง deploy ยังไม่ push รอ PO สั่ง (push แล้ว CSS บนเว็บจริงจะไม่มี rule ของ variant `dark` ค้าง)
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
 - Export/Import JSON ตัดออกจาก v2 เพื่อรักษาขนาด เป็น P1 ถัดไป (`Store` มี `schemaVersion` รองรับแล้ว)
 
