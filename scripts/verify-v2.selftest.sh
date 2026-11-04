@@ -7,7 +7,7 @@ set -o pipefail
 cd "$(dirname "$0")/.." || { echo "FATAL: cannot cd to project root"; exit 2; }
 ROOT="$(pwd)"
 VERIFY="scripts/verify-v2.sh"
-TARGET_IDS="V2-01 V2-02 V2-03 V2-04 V2-05 V2-06 V2-07 V2-08 V2-09 V2-13 V2-14 V2-15 V2-16"
+TARGET_IDS="V2-01 V2-02 V2-03 V2-04 V2-05 V2-06 V2-07 V2-08 V2-09 V2-13 V2-14 V2-15 V2-16 V2-17"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/verify-v2-selftest.XXXXXX")" || { echo "FATAL: mktemp failed"; exit 2; }
 COPY="$WORK/project"
@@ -112,6 +112,8 @@ mutate_r() { append_line src/index.css '@media (prefers-color-scheme: light) { :
 # Built at run time so Tailwind's source scan never sees a literal dark-variant class in this repo.
 DARK_VARIANT='dark'; DARK_VARIANT="$DARK_VARIANT:text-ink"
 mutate_s() { replace_text src/components/EmptyState.tsx 'text-muted' "text-muted $DARK_VARIANT"; }
+# Outside src entirely: Tailwind's source scan still picks the string up and the built CSS gains the utility (V2-17).
+mutate_t() { append_line docs/DEV_PLAN.md "selftest note: $DARK_VARIANT"; }
 
 # run_case <letter> <expected-id> <description> <mutation> [<text the evidence lines (not the FAIL headline) must contain>]
 run_case() {
@@ -158,6 +160,7 @@ run_case p "V2-15" "ใส่ document.addEventListener('keydown') ใน Review
 run_case q "V2-07" "เปลี่ยนชื่อเทสต์ให้ AC-15.1 หายไป"                 mutate_q "AC-15.1"
 run_case r "V2-16" "ใส่ @media (prefers-color-scheme: light) ใน index.css" mutate_r "src/index.css"
 run_case s "V2-16" "ใส่ $DARK_VARIANT ใน component"                    mutate_s "$DARK_VARIANT"
+run_case t "V2-17" "ใส่ $DARK_VARIANT ใน docs/DEV_PLAN.md (นอก src)"       mutate_t "$DARK_VARIANT"
 
 echo
 echo "== 3. Results =="

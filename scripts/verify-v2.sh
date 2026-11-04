@@ -370,6 +370,26 @@ else
   { grep -iE 'error' "$LOG" || tail -n 15 "$LOG"; } | evidence
 fi
 
+# Dark only (PO 2026-11-02): what ships must carry no light/dark switch either. Tailwind v4 scans every file in the
+# repo for class candidates, so a dark-variant class string written anywhere (docs, scripts, comments) becomes a
+# utility wrapped in a prefers-color-scheme media query. V2-16 looks under src; this looks at the built stylesheet.
+BUILT_CSS=$(find dist/assets -type f -name '*.css' 2>/dev/null | LC_ALL=C sort)
+if [ -z "$BUILT_CSS" ]; then
+  fail "V2-17" "no dist/assets/*.css to inspect (the build produced no stylesheet)"
+else
+  V217_HITS="$TMP_DIR/v217-hits"
+  : > "$V217_HITS"
+  for f in $BUILT_CSS; do
+    grep -oE 'prefers-color-scheme[^)]*\)|\.dark\\:[A-Za-z0-9_\\/.%-]*' "$f" | sed 's/\\//g' | sed "s|^|$f: |" >> "$V217_HITS" || true
+  done
+  if [ -s "$V217_HITS" ]; then
+    fail "V2-17" "the built CSS contains a light/dark switch — a dark: class string somewhere in the repo (docs, scripts, comments) was picked up by Tailwind's source scan"
+    sort -u "$V217_HITS" | evidence
+  else
+    pass "V2-17" "built CSS (dist/assets/*.css) has no prefers-color-scheme or dark: utility — what ships is dark only"
+  fi
+fi
+
 if npm run lint > "$LOG" 2>&1; then
   pass "V2-10d" "npm run lint exit 0"
 else
