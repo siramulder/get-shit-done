@@ -53,24 +53,58 @@ describe('adding and ordering', () => {
     expect(todoTitles()).toEqual(['ซื้อนม'])
   })
 
-  it('P2-12 adding A, B, C lists them as A, B, C', async () => {
+  it('P2-12 adding A, B, C lists them as C, B, A (newest first, AC-18.1)', async () => {
     const { user } = setup()
     await addTasks(user, 'A', 'B', 'C')
-    expect(todoTitles()).toEqual(['A', 'B', 'C'])
+    expect(todoTitles()).toEqual(['C', 'B', 'A'])
   })
 
-  it('P2-13 ↑ on B gives B, A, C', async () => {
+  it('AC-18.1 a new task goes on top and the rest keep their relative order', async () => {
+    const { user } = setup()
+    await addTasks(user, 'A', 'B')
+    expect(todoTitles()).toEqual(['B', 'A'])
+    await user.click(button(labels.moveUp('A'))) // A, B: not the creation order any more
+    expect(todoTitles()).toEqual(['A', 'B'])
+    await addTasks(user, 'C')
+    expect(todoTitles()).toEqual(['C', 'A', 'B']) // on top, and the moved pair is not re-sorted by createdAt
+  })
+
+  it('AC-18.2 after a reload the newest task is still first, in the list and in the stored array', async () => {
+    const first = setup()
+    await addTasks(first.user, 'A', 'B')
+    first.unmount()
+    setup()
+    expect(todoTitles()).toEqual(['B', 'A'])
+    const raw = (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Store).tasks // unsorted
+    expect(raw.map((t) => t.title)).toEqual(['B', 'A'])
+    expect(raw.map((t) => t.order)).toEqual([0, 1])
+  })
+
+  it('AC-18.3 undo removes the task just added from the top; redo puts it back on top', async () => {
+    const { user } = setup()
+    await addTasks(user, 'A', 'B')
+    const undo = () => screen.getByRole('button', { name: labels.undo.undo })
+    const redo = () => screen.getByRole('button', { name: labels.undo.redo })
+    expect(undo()).toHaveAccessibleDescription(labels.history.add('B'))
+    await user.click(undo())
+    expect(todoTitles()).toEqual(['A'])
+    expect(redo()).toHaveAccessibleDescription(labels.history.add('B'))
+    await user.click(redo())
+    expect(todoTitles()).toEqual(['B', 'A'])
+  })
+
+  it('P2-13 ↑ on B in C, B, A gives B, C, A', async () => {
     const { user } = setup()
     await addTasks(user, 'A', 'B', 'C')
     await user.click(button(labels.moveUp('B')))
-    expect(todoTitles()).toEqual(['B', 'A', 'C'])
+    expect(todoTitles()).toEqual(['B', 'C', 'A'])
   })
 
-  it('P2-14 ↓ on B gives A, C, B', async () => {
+  it('P2-14 ↓ on B in C, B, A gives C, A, B', async () => {
     const { user } = setup()
     await addTasks(user, 'A', 'B', 'C')
     await user.click(button(labels.moveDown('B')))
-    expect(todoTitles()).toEqual(['A', 'C', 'B'])
+    expect(todoTitles()).toEqual(['C', 'A', 'B'])
   })
 
   it('P2-15 disabled ↑/↓ follow each task to its new position', async () => {
@@ -80,12 +114,12 @@ describe('adding and ordering', () => {
 
     expect(button(labels.moveUp('B'))).toBeDisabled()
     expect(button(labels.moveDown('B'))).toBeEnabled()
-    expect(button(labels.moveUp('A'))).toBeEnabled()
+    expect(button(labels.moveUp('C'))).toBeEnabled() // C was first, now second
 
-    await user.click(button(labels.moveDown('A')))
-    expect(todoTitles()).toEqual(['B', 'C', 'A'])
-    expect(button(labels.moveDown('A'))).toBeDisabled()
-    expect(button(labels.moveDown('C'))).toBeEnabled()
+    await user.click(button(labels.moveDown('C')))
+    expect(todoTitles()).toEqual(['B', 'A', 'C'])
+    expect(button(labels.moveDown('C'))).toBeDisabled()
+    expect(button(labels.moveDown('A'))).toBeEnabled()
   })
 })
 
@@ -99,12 +133,12 @@ describe('completing, undoing and deleting', () => {
     expect(doneTitles()).toEqual(['A'])
   })
 
-  it('P2-17 undo puts the task back at the END of the todo list', async () => {
+  it('P2-17 ↩ puts the task back at the END of the todo list, not at its old top position', async () => {
     const { user } = setup()
-    await addTasks(user, 'A', 'B', 'C')
-    await user.click(button(labels.complete('A')))
-    await user.click(button(labels.uncomplete('A')))
-    expect(todoTitles()).toEqual(['B', 'C', 'A'])
+    await addTasks(user, 'A', 'B', 'C') // listed C, B, A
+    await user.click(button(labels.complete('C')))
+    await user.click(button(labels.uncomplete('C')))
+    expect(todoTitles()).toEqual(['B', 'A', 'C'])
     expect(doneTitles()).toEqual([])
   })
 
@@ -112,7 +146,7 @@ describe('completing, undoing and deleting', () => {
     const { user } = setup()
     await addTasks(user, 'A', 'B', 'C')
     await user.click(button(labels.remove('B')))
-    expect(todoTitles()).toEqual(['A', 'C'])
+    expect(todoTitles()).toEqual(['C', 'A'])
   })
 
   it('P2-19 deleting a done task removes it', async () => {
@@ -198,12 +232,12 @@ describe('robustness', () => {
   it('P2-27 after unmount and a fresh render the list and order are the same', async () => {
     const first = setup()
     await addTasks(first.user, 'A', 'B', 'C')
-    await first.user.click(button(labels.moveUp('C')))
-    expect(todoTitles()).toEqual(['A', 'C', 'B'])
+    await first.user.click(button(labels.moveUp('A'))) // C, B, A → C, A, B
+    expect(todoTitles()).toEqual(['C', 'A', 'B'])
     first.unmount()
 
     setup()
-    expect(todoTitles()).toEqual(['A', 'C', 'B'])
+    expect(todoTitles()).toEqual(['C', 'A', 'B'])
   })
 
   it('P2-28 corrupted localStorage still renders the app with the empty state', () => {
@@ -257,7 +291,7 @@ describe('robustness', () => {
     expect(doneTitles()).toEqual(['A'])
   })
 
-  it('P2-33 a long list (50 tasks) still moves, completes, deletes and appends correctly', async () => {
+  it('P2-33 a long list (50 tasks) still moves, completes, deletes and prepends correctly', async () => {
     seed(
       Array.from({ length: 50 }, (_, i): Task => ({
         id: `seed-${i + 1}`,
@@ -282,7 +316,8 @@ describe('robustness', () => {
 
     await addTasks(user, 'งานใหม่')
     expect(todoTitles()).toHaveLength(49)
-    expect(todoTitles().at(-1)).toBe('งานใหม่')
+    expect(todoTitles().at(0)).toBe('งานใหม่')
+    expect(todoTitles()[1]).toBe('งาน 2') // the rest kept their order
   })
 })
 
@@ -290,9 +325,10 @@ describe('P3 focus after a row leaves its list', () => {
   const addTaskBox = () => screen.getByRole('textbox', { name: labels.inputLabel })
 
   // [case, tasks, clicked, expected focus owner (null = the add-task box)]
+  // Todo rows are listed newest first, so adding A, B, C shows C, B, A.
   const cases: Array<[string, string[], string, string | null]> = [
-    ['the same button in the next row', ['A', 'B', 'C'], 'B', 'C'],
-    ['the previous row when the last row is used', ['A', 'B', 'C'], 'C', 'B'],
+    ['the same button in the next row', ['A', 'B', 'C'], 'B', 'A'],
+    ['the previous row when the last row is used', ['A', 'B', 'C'], 'A', 'B'],
     ['the add-task box when no row is left', ['A'], 'A', null],
   ]
 
@@ -461,7 +497,7 @@ describe('review mode (slice 1)', () => {
     expect(screen.queryByRole('heading', { name: labels.doneHeading })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: labels.todoHeading })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: labels.review.question })).toBeInTheDocument()
-    expectPair('B', 'C', 1, 2)
+    expectPair('B', 'A', 1, 2)
     expect(within(dialog()).getAllByRole('button').map((b) => b.dataset.position ?? b.textContent)).toEqual([
       'upper',
       'lower',
@@ -482,65 +518,65 @@ describe('review mode (slice 1)', () => {
     ],
   ])('AC-6.4 focus goes to the upper card on open and back to the review button after closing with %s', async (_how, closeIt) => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B')
-    expect(card('A')).toHaveFocus()
+    await openWith(user, 'A', 'B') // listed B, A: B is the upper card
+    expect(card('B')).toHaveFocus()
     await closeIt(user)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(reviewButton()).toHaveFocus()
   })
 
-  it('AC-7.1 A, B, C, D start with C on top, D below, "คำถาม 1 จาก 3"', async () => {
+  it('AC-7.1 A, B, C, D (listed D, C, B, A) start with B on top, A below, "คำถาม 1 จาก 3"', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    expectPair('C', 'D', 1, 3)
+    expectPair('B', 'A', 1, 3)
   })
 
-  it('AC-7.2 picking the lower card D stores A, B, D, C at once and asks B vs D next', async () => {
+  it('AC-7.2 picking the lower card A stores D, C, A, B at once and asks C vs A next', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    await pick(user, card('D'))
-    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
-    expectPair('B', 'D', 2, 3)
+    await pick(user, card('A'))
+    expect(storedTodo()).toEqual(['D', 'C', 'A', 'B'])
+    expectPair('C', 'A', 2, 3)
   })
 
   it.each<[string, () => HTMLElement]>([
-    ['the upper card C', () => card('C')],
+    ['the upper card B', () => card('B')],
     ['skip', () => screen.getByRole('button', { name: labels.review.skip })],
-  ])('AC-7.3 choosing %s keeps the order and asks B vs C next', async (_label, target) => {
+  ])('AC-7.3 choosing %s keeps the order and asks C vs B next', async (_label, target) => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
     await pick(user, target())
-    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
-    expectPair('B', 'C', 2, 3)
+    expect(storedTodo()).toEqual(['D', 'C', 'B', 'A'])
+    expectPair('C', 'B', 2, 3)
   })
 
-  it('AC-7.4 picking D every time ends with D, A, B, C in state and storage', async () => {
+  it('AC-7.4 picking A (the bottom task) every time ends with A, D, C, B in state and storage', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    for (let i = 0; i < 3; i++) await pick(user, card('D'))
-    expect(storedTodo()).toEqual(['D', 'A', 'B', 'C'])
+    for (let i = 0; i < 3; i++) await pick(user, card('A'))
+    expect(storedTodo()).toEqual(['A', 'D', 'C', 'B'])
     await user.click(screen.getByRole('button', { name: labels.review.close }))
-    expect(todoTitles()).toEqual(['D', 'A', 'B', 'C'])
+    expect(todoTitles()).toEqual(['A', 'D', 'C', 'B'])
   })
 
   it('AC-7.5 after the last question the summary names the top task with "again" and "close" and no cards', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    for (let i = 0; i < 3; i++) await pick(user, card('D'))
-    expect(within(dialog()).getByText(labels.review.topTask('D'))).toBeInTheDocument()
+    for (let i = 0; i < 3; i++) await pick(user, card('A'))
+    expect(within(dialog()).getByText(labels.review.topTask('A'))).toBeInTheDocument()
     expect(within(dialog()).getByRole('button', { name: labels.review.again })).toBeInTheDocument()
     expect(within(dialog()).getByRole('button', { name: labels.review.close })).toBeInTheDocument()
-    expect(within(dialog()).queryByRole('button', { name: 'D' })).not.toBeInTheDocument()
+    expect(within(dialog()).queryByRole('button', { name: 'A' })).not.toBeInTheDocument()
     expect(dialog().querySelector('[data-position]')).toBeNull()
   })
 
   it('AC-7.6 "again" starts over from the bottom pair of the new order with the counter at 1', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    for (let i = 0; i < 3; i++) await pick(user, card('D'))
+    for (let i = 0; i < 3; i++) await pick(user, card('A')) // A, D, C, B
     await user.click(screen.getByRole('button', { name: labels.review.again }))
-    expectPair('B', 'C', 1, 3)
-    expect(card('B')).toHaveFocus()
+    expectPair('C', 'B', 1, 3)
+    expect(card('C')).toHaveFocus()
   })
 
   it.each<[string, (user: UserEvent) => Promise<void>]>([
@@ -557,12 +593,12 @@ describe('review mode (slice 1)', () => {
     const confirmSpy = vi.spyOn(window, 'confirm')
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
-    await pick(user, card('D'))
-    await pick(user, card('B'))
+    await pick(user, card('A')) // q1 B/A → lower A swaps: D, C, A, B
+    await pick(user, card('C')) // q2 C/A → keep
     await closeIt(user)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(confirmSpy).not.toHaveBeenCalled()
-    expect(todoTitles()).toEqual(['A', 'B', 'D', 'C'])
+    expect(todoTitles()).toEqual(['D', 'C', 'A', 'B'])
   })
 
   it('AC-10.1 only the four mode controls can take focus while the mode is open', async () => {
@@ -571,47 +607,47 @@ describe('review mode (slice 1)', () => {
     const focusable = [...document.querySelectorAll<HTMLElement>('button, input, a[href], select, textarea, [tabindex]')].filter(
       (el) => !el.hasAttribute('disabled') && el.tabIndex >= 0,
     )
-    expect(focusable).toEqual([card('B'), card('C'), button(labels.review.skip), button(labels.review.close)])
+    expect(focusable).toEqual([card('B'), card('A'), button(labels.review.skip), button(labels.review.close)])
   })
 
   it.each([['{Enter}'], [' ']])('AC-10.2 %s on the focused lower card works like clicking it', async (key) => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C', 'D')
     await user.tab()
-    expect(card('D')).toHaveFocus()
+    expect(card('A')).toHaveFocus()
     await user.keyboard(key)
     settle()
-    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
-    expectPair('B', 'D', 2, 3)
+    expect(storedTodo()).toEqual(['D', 'C', 'A', 'B'])
+    expectPair('C', 'A', 2, 3)
   })
 
   it('AC-10.3 the polite live region announces each new pair and then the summary', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C')
     const live = () => dialog().querySelector('[aria-live="polite"]')
-    expect(live()).toHaveTextContent(labels.review.announcePair('B', 'C', 1, 2))
+    expect(live()).toHaveTextContent(labels.review.announcePair('B', 'A', 1, 2))
+    await pick(user, card('A')) // lower → C, A, B
+    expect(live()).toHaveTextContent(labels.review.announcePair('C', 'A', 2, 2))
     await pick(user, card('C'))
-    expect(live()).toHaveTextContent(labels.review.announcePair('A', 'C', 2, 2))
-    await pick(user, card('A'))
-    expect(live()).toHaveTextContent(labels.review.announceDone('A'))
+    expect(live()).toHaveTextContent(labels.review.announceDone('C'))
   })
 
   it('AC-F1.1 exactly two todo tasks ask one question and then show the summary', async () => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B')
-    expectPair('A', 'B', 1, 1)
+    await openWith(user, 'A', 'B') // listed B, A
+    expectPair('B', 'A', 1, 1)
     await pick(user, screen.getByRole('button', { name: labels.review.skip }))
-    expect(within(dialog()).getByText(labels.review.topTask('A'))).toBeInTheDocument()
+    expect(within(dialog()).getByText(labels.review.topTask('B'))).toBeInTheDocument()
   })
 
   it('AC-F1.3 after a swap, a fresh render opens on the normal list with the swap kept', async () => {
     const first = setupReview()
-    await openWith(first.user, 'A', 'B', 'C')
-    await pick(first.user, card('C'))
+    await openWith(first.user, 'A', 'B', 'C') // listed C, B, A
+    await pick(first.user, card('A')) // lower A swaps: C, A, B
     first.unmount()
     setupReview()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(todoTitles()).toEqual(['A', 'C', 'B'])
+    expect(todoTitles()).toEqual(['C', 'A', 'B'])
   })
 
   it('S1-09 a task finished today is never a card during the round', async () => {
@@ -621,16 +657,16 @@ describe('review mode (slice 1)', () => {
     await user.click(reviewButton())
     for (let i = 0; i < 2; i++) {
       expect(within(dialog()).queryByRole('button', { name: 'X' })).not.toBeInTheDocument()
-      await pick(user, card(i === 0 ? 'C' : 'A'))
+      await pick(user, card(i === 0 ? 'A' : 'C')) // C, B, A: lower A swaps, then upper C keeps
     }
     expect(within(dialog()).queryByRole('button', { name: 'X' })).not.toBeInTheDocument()
-    expect(storedTodo()).toEqual(['A', 'C', 'B'])
+    expect(storedTodo()).toEqual(['C', 'A', 'B'])
   })
 
   it('S1-10 the two cards share one className through a whole round', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C')
-    for (const title of ['C', 'A']) {
+    for (const title of ['A', 'C']) {
       const [upper, lower] = within(dialog()).getAllByRole('button').slice(0, 2)
       expect(upper.className).toBe(lower.className)
       await pick(user, card(title))
@@ -646,18 +682,18 @@ describe('review mode (slice 1)', () => {
 
   it('S1-12 a second click on the same card during the hold is ignored: one swap, the answered pair stays with a ✓, then the next pair', async () => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B', 'C', 'D')
-    await user.click(card('D'))
-    await user.click(card('D'))
-    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
-    expectPair('C', 'D', 1, 3)
-    expect(card('D')).toHaveAttribute('data-chosen', 'true')
-    expect(card('D')).toHaveAttribute('aria-disabled', 'true')
-    expect(card('C')).toHaveClass('opacity-50')
+    await openWith(user, 'A', 'B', 'C', 'D') // listed D, C, B, A
+    await user.click(card('A'))
+    await user.click(card('A'))
+    expect(storedTodo()).toEqual(['D', 'C', 'A', 'B'])
+    expectPair('B', 'A', 1, 3)
+    expect(card('A')).toHaveAttribute('data-chosen', 'true')
+    expect(card('A')).toHaveAttribute('aria-disabled', 'true')
+    expect(card('B')).toHaveClass('opacity-50')
     settle()
-    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
-    expectPair('B', 'D', 2, 3)
-    expect(card('D')).not.toHaveAttribute('aria-disabled')
+    expect(storedTodo()).toEqual(['D', 'C', 'A', 'B'])
+    expectPair('C', 'A', 2, 3)
+    expect(card('A')).not.toHaveAttribute('aria-disabled')
   })
 
 })
@@ -710,10 +746,10 @@ describe('undo / redo (slice 2)', () => {
     expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true, shiftKey: true }))).toBe(false)
     expect(todoTitles()).toEqual(['A'])
     expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(false)
-    expect(todoTitles()).toEqual(['A', 'B'])
+    expect(todoTitles()).toEqual(['B', 'A'])
     // nothing left to redo: the key is not claimed
     expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(true)
-    expect(todoTitles()).toEqual(['A', 'B'])
+    expect(todoTitles()).toEqual(['B', 'A'])
   })
 
   it('S2-07 a held-down key (repeat) does not undo', async () => {
@@ -736,7 +772,7 @@ describe('undo / redo (slice 2)', () => {
       await act(() => new Promise((r) => setTimeout(r, 0)))
       expect(handle).toHaveAttribute('aria-pressed', 'true')
       expect(fireEvent.keyDown(handle, keyZ({ metaKey: true }))).toBe(true)
-      expect(todoTitles()).toEqual(['A', 'B'])
+      expect(todoTitles()).toEqual(['B', 'A'])
       expect(undoButton()).toBeEnabled()
       fireEvent.keyDown(document, { code: 'Escape' })
       await act(() => new Promise((r) => setTimeout(r, 0)))
@@ -832,47 +868,47 @@ describe('review-answer undo (slice 2)', () => {
     ['the undo button', async () => undefined],
   ])('AC-9.1 after answering pair 2 with "lower", %s reverts the swap and returns to pair 2 with focus on the upper card', async (how, trigger) => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B', 'C', 'D')
-    await pick(user, card('C')) // q1 C/D → keep
-    await pick(user, card('C')) // q2 B/C → lower C swaps: A, C, B, D
-    expect(storedTodo()).toEqual(['A', 'C', 'B', 'D'])
-    expectPair('A', 'C', 3, 3)
+    await openWith(user, 'A', 'B', 'C', 'D') // listed D, C, B, A
+    await pick(user, card('B')) // q1 B/A → keep
+    await pick(user, card('B')) // q2 C/B → lower B swaps: D, B, C, A
+    expect(storedTodo()).toEqual(['D', 'B', 'C', 'A'])
+    expectPair('D', 'B', 3, 3)
     if (how === '⌘Z') await trigger()
     else await user.click(undoButton())
-    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
-    expectPair('B', 'C', 2, 3)
-    expect(card('B')).toHaveFocus()
-    expect(live()).toHaveTextContent(labels.review.announceUndo(labels.history.swap('C'), 'B', 'C', 2, 3))
+    expect(storedTodo()).toEqual(['D', 'C', 'B', 'A'])
+    expectPair('C', 'B', 2, 3)
+    expect(card('C')).toHaveFocus()
+    expect(live()).toHaveTextContent(labels.review.announceUndo(labels.history.swap('B'), 'C', 'B', 2, 3))
   })
 
   it('AC-9.2 after closing a round with 3 swaps, ⌘Z three times walks back one pair at a time', async () => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B', 'C', 'D', 'E')
-    await pick(user, card('E')) // D/E → E up: A B C E D
-    await pick(user, card('E')) // C/E → E up: A B E C D
-    await pick(user, card('E')) // B/E → E up: A E B C D
+    await openWith(user, 'A', 'B', 'C', 'D', 'E') // listed E, D, C, B, A
+    await pick(user, card('A')) // B/A → A up: E D C A B
+    await pick(user, card('A')) // C/A → A up: E D A C B
+    await pick(user, card('A')) // D/A → A up: E A D C B
     await user.click(screen.getByRole('button', { name: labels.review.close }))
-    expect(todoTitles()).toEqual(['A', 'E', 'B', 'C', 'D'])
+    expect(todoTitles()).toEqual(['E', 'A', 'D', 'C', 'B'])
     pressUndo()
-    expect(todoTitles()).toEqual(['A', 'B', 'E', 'C', 'D'])
+    expect(todoTitles()).toEqual(['E', 'D', 'A', 'C', 'B'])
     pressUndo()
-    expect(todoTitles()).toEqual(['A', 'B', 'C', 'E', 'D'])
+    expect(todoTitles()).toEqual(['E', 'D', 'C', 'A', 'B'])
     pressUndo()
-    expect(todoTitles()).toEqual(['A', 'B', 'C', 'D', 'E'])
-    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D', 'E'])
+    expect(todoTitles()).toEqual(['E', 'D', 'C', 'B', 'A'])
+    expect(storedTodo()).toEqual(['E', 'D', 'C', 'B', 'A'])
   })
 
   it.each<[string, (user: UserEvent) => Promise<void>]>([
-    ['the upper card', (user) => pick(user, card('C'))],
+    ['the upper card', (user) => pick(user, card('B'))],
     ['skip', (user) => pick(user, screen.getByRole('button', { name: labels.review.skip }))],
   ])('S2-13 undoing %s steps the counter back and leaves the task history untouched', async (_how, answerIt) => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B', 'C', 'D')
+    await openWith(user, 'A', 'B', 'C', 'D') // listed D, C, B, A
     await answerIt(user)
-    expectPair('B', 'C', 2, 3)
+    expectPair('C', 'B', 2, 3)
     await user.click(undoButton())
-    expectPair('C', 'D', 1, 3)
-    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
+    expectPair('B', 'A', 1, 3)
+    expect(storedTodo()).toEqual(['D', 'C', 'B', 'A'])
     await user.click(screen.getByRole('button', { name: labels.review.close }))
     expect(undoButton()).toHaveAccessibleDescription(labels.history.add('D')) // nothing from the review was recorded
     expect(redoButton()).toBeDisabled()
@@ -880,85 +916,85 @@ describe('review-answer undo (slice 2)', () => {
 
   it('S2-14 undo during the 800 ms hold cancels the hold and reverts the answer at once', async () => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B', 'C', 'D')
-    await user.click(card('D'))
+    await openWith(user, 'A', 'B', 'C', 'D') // listed D, C, B, A
+    await user.click(card('A'))
     expect(vi.getTimerCount()).toBe(1)
-    expect(storedTodo()).toEqual(['A', 'B', 'D', 'C'])
+    expect(storedTodo()).toEqual(['D', 'C', 'A', 'B'])
     await user.click(undoButton())
     expect(vi.getTimerCount()).toBe(0)
-    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
-    expectPair('C', 'D', 1, 3)
+    expect(storedTodo()).toEqual(['D', 'C', 'B', 'A'])
+    expectPair('B', 'A', 1, 3)
     expect(dialog().querySelector('[data-chosen]')).toBeNull()
-    expect(card('C')).not.toHaveAttribute('aria-disabled')
-    expect(card('C')).toHaveFocus()
+    expect(card('B')).not.toHaveAttribute('aria-disabled')
+    expect(card('B')).toHaveFocus()
     settle()
-    expectPair('C', 'D', 1, 3)
+    expectPair('B', 'A', 1, 3)
   })
 
   it('S2-15 redo stays disabled throughout the mode, even right after an undo', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C')
     expect(redoButton()).toBeDisabled()
-    await pick(user, card('C'))
+    await pick(user, card('A')) // lower card of C, B, A
     expect(redoButton()).toBeDisabled()
     await user.click(undoButton())
     expect(redoButton()).toBeDisabled()
     expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true, shiftKey: true }))).toBe(true)
     expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(true)
-    expect(storedTodo()).toEqual(['A', 'B', 'C'])
+    expect(storedTodo()).toEqual(['C', 'B', 'A'])
   })
 
   it('S2-16 undoing back to question 1 disables undo', async () => {
     const { user } = setupReview()
     await openWith(user, 'A', 'B', 'C')
     expect(undoButton()).toBeDisabled()
-    await pick(user, card('C'))
+    await pick(user, card('A'))
     expect(undoButton()).toBeEnabled()
     await user.click(undoButton())
     expect(undoButton()).toBeDisabled()
-    expectPair('B', 'C', 1, 2)
+    expectPair('B', 'A', 1, 2)
     expect(fireEvent.keyDown(document.body, keyZ({ metaKey: true }))).toBe(true)
-    expect(storedTodo()).toEqual(['A', 'B', 'C'])
+    expect(storedTodo()).toEqual(['C', 'B', 'A'])
   })
 
   it('S2-17 "again" starts a fresh round with nothing to undo', async () => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B', 'C')
-    await pick(user, card('C'))
-    await pick(user, card('A'))
+    await openWith(user, 'A', 'B', 'C') // listed C, B, A
+    await pick(user, card('A')) // lower A swaps: C, A, B
+    await pick(user, card('C')) // keep
     await user.click(screen.getByRole('button', { name: labels.review.again }))
     expect(undoButton()).toBeDisabled()
-    expectPair('C', 'B', 1, 2) // the round above swapped C above B
+    expectPair('A', 'B', 1, 2) // the round above swapped A above B
   })
 
   it('S2-18 closing and reopening the mode drops the answer history but keeps the task history', async () => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B', 'C')
-    await pick(user, card('C')) // swap: A C B
+    await openWith(user, 'A', 'B', 'C') // listed C, B, A
+    await pick(user, card('A')) // swap: C A B
     await user.click(screen.getByRole('button', { name: labels.review.close }))
     expect(undoButton()).toBeEnabled()
-    expect(undoButton()).toHaveAccessibleDescription(labels.history.swap('C'))
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.swap('A'))
     await user.click(reviewButton())
     expect(undoButton()).toBeDisabled()
     await user.click(screen.getByRole('button', { name: labels.review.close }))
     expect(undoButton()).toBeEnabled()
     await user.click(undoButton())
-    expect(todoTitles()).toEqual(['A', 'B', 'C'])
+    expect(todoTitles()).toEqual(['C', 'B', 'A'])
   })
 
   it('S2-19 undo in the mode, then a different answer: the new answer wins and nothing is left to redo', async () => {
     const { user } = setupReview()
-    await openWith(user, 'A', 'B', 'C', 'D')
-    await pick(user, card('D')) // swap → A B D C
+    await openWith(user, 'A', 'B', 'C', 'D') // listed D, C, B, A
+    await pick(user, card('A')) // swap → D C A B
     await user.click(undoButton())
-    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
-    await pick(user, card('C')) // keep C on top this time
-    expect(storedTodo()).toEqual(['A', 'B', 'C', 'D'])
-    expectPair('B', 'C', 2, 3)
+    expect(storedTodo()).toEqual(['D', 'C', 'B', 'A'])
+    await pick(user, card('B')) // keep B on top this time
+    expect(storedTodo()).toEqual(['D', 'C', 'B', 'A'])
+    expectPair('C', 'B', 2, 3)
     await user.click(screen.getByRole('button', { name: labels.review.close }))
     expect(redoButton()).toBeDisabled()
     expect(undoButton()).toHaveAccessibleDescription(labels.history.add('D'))
     expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(true)
-    expect(todoTitles()).toEqual(['A', 'B', 'C', 'D'])
+    expect(todoTitles()).toEqual(['D', 'C', 'B', 'A'])
   })
 })

@@ -62,9 +62,9 @@ describe('addTask', () => {
     expect(Number.isNaN(Date.parse(task.createdAt))).toBe(false)
   })
 
-  it('P1-25 keeps A, B, C in the order they were added', () => {
+  it('P1-25 puts each added task on top: A, B, C becomes C, B, A', () => {
     const { result } = setup('A', 'B', 'C')
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'B', 'C'])
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'B', 'A'])
   })
 
   it('P1-26 trims leading and trailing whitespace', () => {
@@ -91,7 +91,7 @@ describe('addTask', () => {
     const names = ['ประชุมทีม 🚀', 'ซื้อของให้ครอบครัว 👨‍👩‍👧', 'ส่งงาน ✅']
     setup(...names).unmount()
     const { result } = renderHook(() => useTasks())
-    expect(titles(result.current.todoTasks)).toEqual(names)
+    expect(titles(result.current.todoTasks)).toEqual([...names].reverse()) // newest first
   })
 
   it('P1-31 adds exactly one task per call inside <StrictMode>', () => {
@@ -100,6 +100,53 @@ describe('addTask', () => {
     act(() => result.current.addTask('A'))
     expect(result.current.todoTasks).toHaveLength(1)
     expect(stored()).toHaveLength(1)
+  })
+})
+
+describe('new task on top (US-18)', () => {
+  it('AC-18.1 a new task goes to the top, todo tasks keep their relative order, done tasks are untouched', () => {
+    freezeAt(local(5, 9))
+    const { result } = setup('A', 'B', 'C') // listed C, B, A
+    act(() => result.current.completeTask(idOf(result, 'B')))
+    const doneBefore = result.current.doneTodayTasks
+    act(() => result.current.addTask('D'))
+    expect(titles(result.current.todoTasks)).toEqual(['D', 'C', 'A'])
+    expect(result.current.todoTasks.map((t) => t.order)).toEqual([0, 1, 2])
+    expect(result.current.doneTodayTasks[0]).toBe(doneBefore[0]) // the same object: done tasks are not renumbered
+    expect(stored().map((t) => t.title)).toEqual(['D', 'C', 'B', 'A']) // raw array: new task first, the rest as before
+  })
+
+  it('AC-18.2 after a remount the new task is still first and the stored todo order is already 0..n-1', () => {
+    const first = setup('A', 'B', 'C')
+    act(() => first.result.current.completeTask(idOf(first.result, 'B'))) // leaves a gap: C 0, A 2
+    act(() => first.result.current.addTask('D')) // the add closes it: D 0, C 1, A 2
+    const before = first.result.current.todoTasks
+    expect(before.map((t) => [t.title, t.order])).toEqual([
+      ['D', 0],
+      ['C', 1],
+      ['A', 2],
+    ])
+    first.unmount()
+    const { result } = renderHook(() => useTasks())
+    expect(result.current.todoTasks).toStrictEqual(before) // loading changes nothing, order numbers included
+  })
+
+  it('AC-18.3 undo of an add removes it, redo puts it back on top, the history label stays the add label', () => {
+    const { result } = setup('A', 'B')
+    const before = snapshot(result)
+    const storedBefore = stored()
+    act(() => result.current.addTask('C'))
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'B', 'A'])
+    expect(result.current.lastUndoLabel).toBe(labels.history.add('C'))
+    act(() => result.current.undo())
+    expect(snapshot(result)).toStrictEqual(before)
+    expect(stored()).toStrictEqual(storedBefore)
+    expect(result.current.lastRedoLabel).toBe(labels.history.add('C'))
+    act(() => result.current.redo())
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'B', 'A'])
+    expect(result.current.todoTasks.map((t) => t.order)).toEqual([0, 1, 2])
+    expect(result.current.lastUndoLabel).toBe(labels.history.add('C'))
+    expect(stored().map((t) => t.title)).toEqual(['C', 'B', 'A'])
   })
 })
 
@@ -113,10 +160,10 @@ describe('completeTask', () => {
     expect(result.current.doneTodayTasks[0].completedAt).toBe(local(5, 9).toISOString())
   })
 
-  it('P1-33 completing B out of A, B, C leaves A, C', () => {
+  it('P1-33 completing B out of C, B, A leaves C, A', () => {
     const { result } = setup('A', 'B', 'C')
     act(() => result.current.completeTask(idOf(result, 'B')))
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'C'])
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'A'])
   })
 
   it('P1-34 completing twice keeps the first completedAt', () => {
@@ -137,13 +184,13 @@ describe('completeTask', () => {
 })
 
 describe('uncompleteTask', () => {
-  it('P1-36 returns the task to the end of todo and removes completedAt', () => {
-    const { result } = setup('A', 'B', 'C')
-    const id = idOf(result, 'A')
+  it('P1-36 returns the task to the end of todo (not its old top position) and removes completedAt', () => {
+    const { result } = setup('A', 'B', 'C') // listed C, B, A
+    const id = idOf(result, 'C')
     act(() => result.current.completeTask(id))
     act(() => result.current.uncompleteTask(id))
 
-    expect(titles(result.current.todoTasks)).toEqual(['B', 'C', 'A'])
+    expect(titles(result.current.todoTasks)).toEqual(['B', 'A', 'C'])
     expect(result.current.doneTodayTasks).toEqual([])
     expect(result.current.todoTasks[2]).not.toHaveProperty('completedAt')
     expect(stored().find((t) => t.id === id)).not.toHaveProperty('completedAt')
@@ -161,7 +208,7 @@ describe('deleteTask', () => {
   it('P1-38 deleting a todo task keeps the others in order', () => {
     const { result } = setup('A', 'B', 'C', 'D')
     act(() => result.current.deleteTask(idOf(result, 'B')))
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'C', 'D'])
+    expect(titles(result.current.todoTasks)).toEqual(['D', 'C', 'A'])
   })
 
   it('P1-39 deleting a done task removes it from doneTodayTasks', () => {
@@ -187,29 +234,29 @@ describe('deleteTask', () => {
 })
 
 describe('moveTask (↑ ↓)', () => {
-  it('P1-42 moving B up in A, B, C gives B, A, C', () => {
+  it('P1-42 moving B up in C, B, A gives B, C, A', () => {
     const { result } = setup('A', 'B', 'C')
     act(() => result.current.moveTask(idOf(result, 'B'), 'up'))
-    expect(titles(result.current.todoTasks)).toEqual(['B', 'A', 'C'])
+    expect(titles(result.current.todoTasks)).toEqual(['B', 'C', 'A'])
   })
 
-  it('P1-43 moving B down in A, B, C gives A, C, B', () => {
+  it('P1-43 moving B down in C, B, A gives C, A, B', () => {
     const { result } = setup('A', 'B', 'C')
     act(() => result.current.moveTask(idOf(result, 'B'), 'down'))
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'C', 'B'])
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'A', 'B'])
   })
 
   it('P1-44 moving the first task up changes nothing', () => {
     const { result } = setup('A', 'B', 'C')
     const before = snapshot(result)
-    act(() => result.current.moveTask(idOf(result, 'A'), 'up'))
+    act(() => result.current.moveTask(idOf(result, 'C'), 'up')) // C is on top
     expect(snapshot(result)).toEqual(before)
   })
 
   it('P1-45 moving the last task down changes nothing', () => {
     const { result } = setup('A', 'B', 'C')
     const before = snapshot(result)
-    act(() => result.current.moveTask(idOf(result, 'C'), 'down'))
+    act(() => result.current.moveTask(idOf(result, 'A'), 'down')) // A is at the bottom
     expect(snapshot(result)).toEqual(before)
   })
 
@@ -230,25 +277,25 @@ describe('moveTask (↑ ↓)', () => {
     expect(snapshot(result)).toEqual(before)
   })
 
-  it('P1-48 with A, (B done), C moving C up gives C, A', () => {
+  it('P1-48 with C, (B done), A moving A up gives A, C', () => {
     const { result } = setup('A', 'B', 'C')
     act(() => result.current.completeTask(idOf(result, 'B')))
-    act(() => result.current.moveTask(idOf(result, 'C'), 'up'))
-    expect(titles(result.current.todoTasks)).toEqual(['C', 'A'])
+    act(() => result.current.moveTask(idOf(result, 'A'), 'up'))
+    expect(titles(result.current.todoTasks)).toEqual(['A', 'C'])
   })
 })
 
 describe('reorderTasks (drag & drop)', () => {
-  it('P1-49 dragging A onto C in A, B, C, D gives B, C, A, D', () => {
+  it('P1-49 dragging A onto C in D, C, B, A gives D, A, C, B', () => {
     const { result } = setup('A', 'B', 'C', 'D')
     act(() => result.current.reorderTasks(idOf(result, 'A'), idOf(result, 'C')))
-    expect(titles(result.current.todoTasks)).toEqual(['B', 'C', 'A', 'D'])
+    expect(titles(result.current.todoTasks)).toEqual(['D', 'A', 'C', 'B'])
   })
 
-  it('P1-50 dragging D onto B in A, B, C, D gives A, D, B, C', () => {
+  it('P1-50 dragging D onto B in D, C, B, A gives C, B, D, A', () => {
     const { result } = setup('A', 'B', 'C', 'D')
     act(() => result.current.reorderTasks(idOf(result, 'D'), idOf(result, 'B')))
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'D', 'B', 'C'])
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'B', 'D', 'A'])
   })
 
   it('P1-51 dropping a task on itself changes nothing', () => {
@@ -351,7 +398,7 @@ describe('persistence', () => {
       () => result.current.addTask('A'),
       () => result.current.addTask('B'),
       () => result.current.addTask('C'),
-      () => result.current.moveTask(idOf(result, 'C'), 'up'),
+      () => result.current.moveTask(idOf(result, 'A'), 'up'), // C, B, A → C, A, B (C is already on top)
       () => result.current.reorderTasks(idOf(result, 'A'), idOf(result, 'B')),
       () => result.current.completeTask(idOf(result, 'B')),
       () => result.current.uncompleteTask(idOf(result, 'B')),
@@ -371,28 +418,28 @@ describe('persistence', () => {
       done: result.current.doneTodayTasks.map(({ id, title, status, completedAt }) => ({ id, title, status, completedAt })),
     })
     const first = setup('A', 'B', 'C', 'D')
-    act(() => first.result.current.moveTask(idOf(first.result, 'D'), 'up'))
+    act(() => first.result.current.moveTask(idOf(first.result, 'D'), 'down')) // D, C, B, A → C, D, B, A
     act(() => first.result.current.completeTask(idOf(first.result, 'A')))
     const before = sequence(first.result)
-    expect(titles(first.result.current.todoTasks)).toEqual(['B', 'D', 'C'])
+    expect(titles(first.result.current.todoTasks)).toEqual(['C', 'D', 'B'])
     first.unmount()
 
     const { result } = renderHook(() => useTasks())
     expect(sequence(result)).toEqual(before)
   })
 
-  it('P1-61 after many deletes and completions a new task still goes to the end', () => {
-    const { result } = setup('A', 'B', 'C', 'D', 'E')
+  it('P1-61 after many deletes and completions a new task still goes to the top, while ↩ still goes to the end', () => {
+    const { result } = setup('A', 'B', 'C', 'D', 'E') // listed E, D, C, B, A
     act(() => result.current.deleteTask(idOf(result, 'E')))
     act(() => result.current.completeTask(idOf(result, 'D')))
     act(() => result.current.deleteTask(idOf(result, 'A')))
-    act(() => result.current.moveTask(idOf(result, 'C'), 'up'))
+    act(() => result.current.moveTask(idOf(result, 'B'), 'up')) // C, B → B, C
     act(() => result.current.addTask('F'))
-    expect(titles(result.current.todoTasks)).toEqual(['C', 'B', 'F'])
+    expect(titles(result.current.todoTasks)).toEqual(['F', 'B', 'C'])
 
     act(() => result.current.uncompleteTask(idOf(result, 'D')))
     act(() => result.current.addTask('G'))
-    expect(titles(result.current.todoTasks)).toEqual(['C', 'B', 'F', 'D', 'G'])
+    expect(titles(result.current.todoTasks)).toEqual(['G', 'F', 'B', 'C', 'D'])
   })
 
   it('does not write to localStorage on mount; cleaned data is saved on the first change', () => {
@@ -507,9 +554,9 @@ describe('undo / redo history (slice 2)', () => {
     const before = snapshot(result)
     const storedBefore = stored()
     act(() => result.current.deleteTask(idOf(result, 'B')))
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'C'])
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'A'])
     act(() => result.current.undo())
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'B', 'C'])
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'B', 'A'])
     expect(snapshot(result)).toStrictEqual(before)
     expect(stored()).toStrictEqual(storedBefore)
   })
@@ -520,7 +567,7 @@ describe('undo / redo history (slice 2)', () => {
     ['uncompleteTask', (r) => r.current.uncompleteTask(idOf(r, 'D'))],
     ['moveTask ↑↓', (r) => r.current.moveTask(idOf(r, 'B'), 'down')],
     ['reorderTasks (drag)', (r) => r.current.reorderTasks(idOf(r, 'A'), idOf(r, 'C'))],
-    ['moveTask from the review (swap)', (r) => r.current.moveTask(idOf(r, 'C'), 'up', 'swap')],
+    ['moveTask from the review (swap)', (r) => r.current.moveTask(idOf(r, 'A'), 'up', 'swap')], // A is at the bottom
     ['deleteTask', (r) => r.current.deleteTask(idOf(r, 'A'))],
   ])('AC-15.2 undo after %s restores the exact previous state, completedAt included', (_name, run) => {
     freezeAt(local(5, 9))
@@ -552,7 +599,7 @@ describe('undo / redo history (slice 2)', () => {
     expect(result.current.canRedo).toBe(true)
     act(() => result.current.addTask('C'))
     expect(result.current.canRedo).toBe(false)
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'C'])
+    expect(titles(result.current.todoTasks)).toEqual(['C', 'A'])
   })
 
   it('AC-15.7 keeps 50 steps: after 60 actions undo stops after 50, leaving the state after action 10', () => {
@@ -564,7 +611,7 @@ describe('undo / redo history (slice 2)', () => {
       undone++
     }
     expect(undone).toBe(50)
-    expect(titles(result.current.todoTasks)).toEqual(Array.from({ length: 10 }, (_, i) => `T${i + 1}`))
+    expect(titles(result.current.todoTasks)).toEqual(Array.from({ length: 10 }, (_, i) => `T${10 - i}`)) // newest first
     act(() => result.current.undo())
     expect(titles(result.current.todoTasks)).toHaveLength(10)
   })
@@ -574,11 +621,11 @@ describe('undo / redo history (slice 2)', () => {
     expect(first.result.current.canUndo).toBe(true)
     first.unmount()
     const { result } = renderHook(() => useTasks())
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'B'])
+    expect(titles(result.current.todoTasks)).toEqual(['B', 'A'])
     expect(result.current.canUndo).toBe(false)
     expect(result.current.canRedo).toBe(false)
     act(() => result.current.undo())
-    expect(titles(result.current.todoTasks)).toEqual(['A', 'B'])
+    expect(titles(result.current.todoTasks)).toEqual(['B', 'A'])
   })
 
   it('AC-15.9 localStorage matches the state right after undo and right after redo', () => {
@@ -586,13 +633,13 @@ describe('undo / redo history (slice 2)', () => {
     act(() => result.current.completeTask(idOf(result, 'A')))
     act(() => result.current.undo())
     expect(stored().map((t) => [t.title, t.status])).toEqual([
-      ['A', 'todo'],
       ['B', 'todo'],
+      ['A', 'todo'],
     ])
     act(() => result.current.redo())
     expect(stored().map((t) => [t.title, t.status])).toEqual([
-      ['A', 'done'],
       ['B', 'todo'],
+      ['A', 'done'],
     ])
     expect((JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Store).schemaVersion).toBe(2)
   })
@@ -617,7 +664,7 @@ describe('undo / redo history (slice 2)', () => {
     const states = [snapshot(result)]
     act(() => result.current.addTask('B'))
     states.push(snapshot(result))
-    act(() => result.current.moveTask(idOf(result, 'B'), 'up'))
+    act(() => result.current.moveTask(idOf(result, 'B'), 'down')) // B was added on top of A
     states.push(snapshot(result))
     act(() => result.current.completeTask(idOf(result, 'A')))
     states.push(snapshot(result))
@@ -669,7 +716,7 @@ describe('undo / redo history (slice 2)', () => {
     expect(result.current.lastUndoLabel).toBe(labels.history.move('A'))
     act(() => result.current.reorderTasks(idOf(result, 'A'), idOf(result, 'C')))
     expect(result.current.lastUndoLabel).toBe(labels.history.move('A'))
-    act(() => result.current.moveTask(idOf(result, 'A'), 'up', 'swap'))
+    act(() => result.current.moveTask(idOf(result, 'A'), 'down', 'swap')) // A is on top after the drag
     expect(result.current.lastUndoLabel).toBe(labels.history.swap('A'))
     act(() => result.current.deleteTask(idOf(result, 'B')))
     expect(result.current.lastUndoLabel).toBe(labels.history.remove('B'))
@@ -694,7 +741,7 @@ describe('undo / redo history (slice 2)', () => {
     act(() => result.current.undo())
     expect(stored()).toStrictEqual([a])
     act(() => result.current.redo())
-    expect(stored().map((t) => t.title)).toEqual(['A', 'B'])
+    expect(stored().map((t) => t.title)).toEqual(['B', 'A'])
     expect(stored()).toStrictEqual([...result.current.todoTasks])
   })
 })

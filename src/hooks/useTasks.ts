@@ -103,7 +103,12 @@ export function useTasks() {
     const id = crypto.randomUUID()
     const createdAt = new Date().toISOString()
     apply(
-      (prev) => [...prev, { id, title: trimmed, order: nextOrder(prev), status: 'todo', createdAt }],
+      (prev) => {
+        // A new task goes on top (US-18, PO 2026-11-05). It is first in the array too, so the stored order reads
+        // like the list, and the other todo tasks are renumbered 0..n-1 as after a move. ↩ (uncompleteTask) still appends.
+        const task: Task = { id, title: trimmed, order: 0, status: 'todo', createdAt }
+        return withTodoOrder([task, ...prev], [task, ...sortedTodo(prev)])
+      },
       () => labels.history.add(trimmed),
     )
   }

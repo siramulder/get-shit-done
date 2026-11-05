@@ -37,7 +37,7 @@ src/
 scripts/        # verify-phase0.sh, verify-phase2.sh + self-test (retired snapshots), verify-v2.sh + verify-v2.selftest.sh
 docs/
   PRD.md        # MVP1
-  PRD-v2.md     # v2 — user stories US-6..US-17 with Given/When/Then AC
+  PRD-v2.md     # v2 — user stories US-6..US-18 with Given/When/Then AC
   DEV_PLAN.md
   MANUAL_QA.md
 ```
@@ -62,6 +62,7 @@ type Store = { schemaVersion: 2; tasks: Task[] };
 - `schemaVersion` higher than this app knows → show an empty list with a "newer version" message, disable mutations, and never overwrite localStorage.
 - Otherwise keep only valid tasks: drop items with missing/wrong-typed fields, a bad status, `done` without `completedAt`, or a malformed `dueDate` (must match `^\d{4}-\d{2}-\d{2}$` and be a real date — drop just that field, keep the task); keep the first of duplicate ids; strip unknown fields. Then renumber todo `order` to 0..n-1 (by order, then createdAt).
 - If anything was discarded, first save the raw string to `task-priority-app:tasks:corrupt-backup` (latest overwrites); clean data never writes a backup.
+- New tasks are inserted at the **top** of the todo list (US-18, PO 2026-11-05): `addTask` prepends the task (first in the stored array too) and renumbers todo `order` 0..n-1 with `withTodoOrder`, like after a move — never a negative `order`. ↩ from "เสร็จวันนี้" (`uncompleteTask`) still appends to the bottom; undo of a delete still restores the original position.
 
 ## v2 Scope — IN
 Pairwise ordering review (one button, bottom-up, n-1 questions, skippable, exit anytime), optional deadline shown as a label only, inline title editing, undo/redo across every action, schema v2 + migration, placeholder contrast fix.
