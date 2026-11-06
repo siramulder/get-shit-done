@@ -114,6 +114,7 @@ DARK_VARIANT='dark'; DARK_VARIANT="$DARK_VARIANT:text-ink"
 mutate_s() { replace_text src/components/EmptyState.tsx 'text-muted' "text-muted $DARK_VARIANT"; }
 # Outside src entirely: Tailwind's source scan still picks the string up and the built CSS gains the utility (V2-17).
 mutate_t() { append_line docs/DEV_PLAN.md "selftest note: $DARK_VARIANT"; }
+mutate_u() { rename_id 'AC-18.1' 'AC-18.X'; }
 
 # run_case <letter> <expected-id> <description> <mutation> [<text the evidence lines (not the FAIL headline) must contain>]
 run_case() {
@@ -161,6 +162,7 @@ run_case q "V2-07" "เปลี่ยนชื่อเทสต์ให้ AC
 run_case r "V2-16" "ใส่ @media (prefers-color-scheme: light) ใน index.css" mutate_r "src/index.css"
 run_case s "V2-16" "ใส่ $DARK_VARIANT ใน component"                    mutate_s "$DARK_VARIANT"
 run_case t "V2-17" "ใส่ $DARK_VARIANT ใน docs/DEV_PLAN.md (นอก src)"       mutate_t "$DARK_VARIANT"
+run_case u "V2-07" "เปลี่ยนชื่อเทสต์ให้ AC-18.1 หายไป"                 mutate_u "AC-18.1"
 
 echo
 echo "== 3. Results =="
