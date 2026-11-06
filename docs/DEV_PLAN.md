@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-11-06 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ, slice 2 (undo/redo) และ dark mode only deploy แล้ว · V2-17 (`3486359`), docs (`0a2adb7`) และ US-18 งานใหม่อยู่บนสุด (`8a8e1e8` + chore) ยังไม่ push · ถัดไป slice 3
+อัปเดต: 2026-11-06 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ, slice 2 (undo/redo) และ dark mode only deploy แล้ว · V2-17 (`3486359`), docs (`0a2adb7`) และ US-18 งานใหม่อยู่บนสุด (`8a8e1e8`, `1f16b9d`, `ec8cd68` + docs sync) ยังไม่ push · ถัดไป slice 3
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -13,7 +13,7 @@
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" · M-05 (โทรศัพท์) และ M-09 (VoiceOver) ตัดออกแล้ว |
 | Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · **v2 slice 2 deploy แล้ว 2026-10-29** ที่ `96dd70c` (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js` ตรงกับ build ของ HEAD, ตรวจปุ่มเลิกทำ/ทำซ้ำในแถบหัวและ ⌘Z บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
-| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) `e747fe7` style + `8ce8887` chore deploy แล้ว 2026-11-04 (workflow 41812662971) · `3486359` chore V2-17 ตรวจ CSS ที่ build — ยังไม่ push · **US-18 งานใหม่อยู่บนสุด** (PO 2026-11-05) `8a8e1e8` feat + chore verify-v2 — ยังไม่ push · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
+| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) `e747fe7` style + `8ce8887` chore deploy แล้ว 2026-11-04 (workflow 41812662971) · `3486359` chore V2-17 ตรวจ CSS ที่ build — ยังไม่ push · **US-18 งานใหม่อยู่บนสุด** (PO 2026-11-05) `8a8e1e8` feat + `1f16b9d` chore + `ec8cd68` docs — ยังไม่ push · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -185,7 +185,9 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 | Commit | เนื้อหา |
 |---|---|
 | `8a8e1e8` | feat(v2): insert new tasks at the top of the list — `addTask` แทรกงานใหม่ไว้หัว array และ renumber todo `order` 0..n-1 ด้วย `withTodoOrder` (↩ ยังต่อท้าย) · เทสต์ที่พึ่งลำดับเดิมแก้ทีละข้อ: useTasks.test.ts 22 ข้อ, App.test.tsx 36 ข้อ (ID คง คำบรรยายแก้ helper `setup`/`addTasks` ไม่แตะ) · ใหม่ AC-18.1/18.2/18.3 ทั้งระดับ hook และ App · PRD-v2 US-18 · CLAUDE.md กฎ Data Model · MANUAL_QA หมายเหตุ + M-30 |
-| chore: verify-v2 adds US-18 ids to slice 2 and self-test case u | `SLICE_2` + AC-18.1–18.3 (V2-07 รวม 81 ID) · self-test กรณี u เปลี่ยนชื่อ AC-18.1 → V2-07 ต้อง FAIL รวม 21 กรณี · DEV_PLAN |
+| `1f16b9d` | chore: verify-v2 adds US-18 ids to slice 2 and self-test case u — `SLICE_2` + AC-18.1–18.3 (V2-07 รวม 81 ID) · self-test กรณี u เปลี่ยนชื่อ AC-18.1 → V2-07 ต้อง FAIL รวม 21 กรณี · DEV_PLAN |
+| `ec8cd68` | docs: record US-18 browser check (M-30) and gate results — แก้ขั้นตอน M-30 (เพิ่มงานหลัง reload ก่อน ⌘Z) + ผล 1280×900 / 375×812 |
+| docs: sync CLAUDE.md and DEV_PLAN after US-18 | CLAUDE.md: self-test 21 กรณี/เวลา, V2-17 + คำเตือน Tailwind สแกนทุกไฟล์, กติกาแก้เทสต์เมื่อ PO เปลี่ยนพฤติกรรม (แก้ทีละข้อ ไม่แตะ helper เปลี่ยนเป้าข้อที่กลายเป็น no-op), ⌘Z ต้องทำหลังมีการกระทำใหม่หลัง reload, AC ของการเปลี่ยนพฤติกรรมเกาะ SLICE ของโค้ดที่แก้ · DEV_PLAN hash |
 
 - **ที่มา:** PO 2026-11-05 "แก้ให้งานที่เพิ่มเข้ามาใหม่อยู่ลำดับบนสุดของ list" ตอบคำถาม: ↩ คงเดิมต่อท้าย · เทสต์แก้ทุกข้อทีละข้อ ไม่แตะ helper · สเปคเป็น US-18 + AC-18.x
 - **ทำไม renumber ไม่ใช้ order ติดลบ:** reload แล้ว `normalizeTodoOrder` ต้องไม่เปลี่ยนเลข (AC-18.2 `toStrictEqual`) และ array ดิบใน localStorage ต้องอ่านเหมือนลิสต์ (S2-22, AC-15.9) · done คืน reference เดิม (AC-16.2)
@@ -230,7 +232,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)
 - slice 2 push ตามคำสั่ง PO 2026-10-29 (M-24 PO ลองบน localhost แล้ว ผ่าน)
 - dark mode only deploy แล้ว 2026-11-04 (workflow 41812662971) · chore `3486359` (V2-17) + docs `0a2adb7` ยังไม่ push รอ PO สั่ง (push แล้ว CSS บนเว็บจริงจะไม่มี rule ของ variant `dark` ค้าง)
-- US-18 งานใหม่อยู่บนสุด `8a8e1e8` feat + chore verify-v2 ยังไม่ push รอ PO สั่ง · M-30 ใน browser pane ดู MANUAL_QA
+- US-18 งานใหม่อยู่บนสุด `8a8e1e8` feat + `1f16b9d` chore + `ec8cd68` docs + docs sync ยังไม่ push รอ PO สั่ง · M-30 ใน browser pane ดู MANUAL_QA
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
 - Export/Import JSON ตัดออกจาก v2 เพื่อรักษาขนาด เป็น P1 ถัดไป (`Store` มี `schemaVersion` รองรับแล้ว)
 

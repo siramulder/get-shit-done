@@ -21,7 +21,7 @@ MVP1 shipped. Current work: **v2 "ตัดสินใจทีละคู่"
 - `npm run build` — production build; its `tsc -b` step is what enforces type-level tests
 - `npm run lint` — lint
 - `bash scripts/verify-v2.sh [--pre-commit] [--slice N]` — v2 verification (report only); checks test ids of slices 0..N, default = latest slice
-- `bash scripts/verify-v2.selftest.sh` — proves verify-v2 catches planted defects (one per check, ~10 min)
+- `bash scripts/verify-v2.selftest.sh` — proves verify-v2 catches planted defects (21 cases, at least one per check, ~13 min; far slower if the Mac sleeps with the lid closed — run long gates in the background)
 - `bash scripts/verify-phase0.sh`, `bash scripts/verify-phase2.sh` — retired phase snapshots, see Scope guards
 
 ## Project Structure
@@ -88,7 +88,8 @@ If a task seems to need any of these, stop and ask instead of implementing.
 - UI text in Thai unless told otherwise.
 
 ## Visual Direction (R — neon on black, dark only)
-- The app is **dark only** (PO decision 2026-11-02): one token set, `color-scheme: dark`, no `prefers-color-scheme` media query and no `dark:` variants anywhere (`scripts/verify-v2.sh` V2-16). The OS theme never changes the app.
+- The app is **dark only** (PO decision 2026-11-02): one token set, `color-scheme: dark`, no `prefers-color-scheme` media query and no `dark:` variants anywhere (`scripts/verify-v2.sh` V2-16 scans `src`, V2-17 scans the built CSS). The OS theme never changes the app.
+  - Tailwind v4 scans **every file in the repo** (docs, scripts, comments) for class candidates: a dark-variant class spelled out anywhere ships as a utility inside a media query. Never write one, not even in docs; scripts that need one build the string at run time (see `verify-v2.selftest.sh`).
 - Mood: a highlighter on black paper. Calm near-black page, near-white ink, and neon used only where it means something.
 - Two neon hues only, plus black/near-white/gray. Every color has one job:
   - neon (lime) = the app and deciding: header title, primary buttons, "ตรวจลำดับ", both review cards
@@ -128,6 +129,8 @@ Tokens (declared in `src/index.css` with `@theme static` — `static` keeps toke
 - A test that starts a pointer drag must end it and then wait ~60ms: dnd-kit keeps a click-swallowing listener on `document` for 50ms, which can eat clicks in the next test.
 - Tests that need fake `setTimeout` (review-mode hold): use `vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })` — never fake `setImmediate` (React's scheduler uses it in Node and rendering stalls) — plus `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })`, and advance inside `act`. `src/test/setup.ts` stubs a `jest` global so @testing-library/react advances vitest's clock after each event; without it user-event hangs.
 - MVP1 tests (P1-xx, P2-xx) must keep passing through v2. If one legitimately no longer applies, stop and ask before changing it.
+- When a PO decision changes behaviour that existing tests pin (e.g. US-18, new task on top): update the expected values test by test with the id kept and the description corrected; never change shared helpers (`setup`, `addTasks`, `openWith`) to hide the change; and if a test's action became a no-op (↑ on the new top row, ↩ of a task already last), re-target it so it still exercises a real change — a vacuous pass is a weakened test.
+- Manual undo checks: the history is session-only (AC-15.8), so after a reload perform a new action before testing ⌘Z.
 
 ## Scope guards
 - `scripts/verify-phase0.sh` and `scripts/verify-phase2.sh` are retired snapshots. verify-phase2 now fails by design (its P2-43 greps for "deadline", which v2 adds); don't edit them to pass and don't use them as a gate for v2 work.
@@ -137,5 +140,5 @@ Tokens (declared in `src/index.css` with `@theme static` — `static` keeps toke
 1. Work one slice at a time, in the order in `docs/DEV_PLAN.md`. Propose a plan first (Plan Mode) and wait for approval.
 2. Write tests first from the AC in `docs/PRD-v2.md`, see them fail, then implement.
 3. Before saying a slice is done: `npm test -- --run`, the shuffled run ×3, `npm run build`, `npm run lint`, and `scripts/verify-v2.sh`. When a slice starts, add its `SLICE_<n>` id list to verify-v2 and bump `LATEST_SLICE`.
-4. Keep changes scoped to the current slice; one slice = one commit (plus a separate commit for verify-script changes). A fix to a shipped slice gets a `fix(v2):` commit and its own test ids appended to that slice's `SLICE_<n>` list.
+4. Keep changes scoped to the current slice; one slice = one commit (plus a separate commit for verify-script changes). A fix to a shipped slice gets a `fix(v2):` commit and its own test ids appended to that slice's `SLICE_<n>` list. A PO change to shipped behaviour gets a new US/AC in `docs/PRD-v2.md` and its ids appended to the `SLICE_<n>` of the code it changes (US-18 → `SLICE_2`).
 5. Summarize what changed and anything not yet meeting the AC, and update `docs/DEV_PLAN.md`.
