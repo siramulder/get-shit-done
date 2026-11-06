@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-11-06 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ, slice 2 (undo/redo) และ dark mode only deploy แล้ว · V2-17 (`3486359`), docs (`0a2adb7`) และ US-18 งานใหม่อยู่บนสุด (`8a8e1e8`, `1f16b9d`, `ec8cd68` + docs sync) ยังไม่ push · ถัดไป slice 3
+อัปเดต: 2026-11-06 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ, slice 2 (undo/redo), dark mode only (+ V2-17) และ US-18 งานใหม่อยู่บนสุด deploy แล้ว (2026-11-06, `f06da0f`) · ถัดไป slice 3
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -13,7 +13,7 @@
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" · M-05 (โทรศัพท์) และ M-09 (VoiceOver) ตัดออกแล้ว |
 | Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · **v2 slice 2 deploy แล้ว 2026-10-29** ที่ `96dd70c` (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js` ตรงกับ build ของ HEAD, ตรวจปุ่มเลิกทำ/ทำซ้ำในแถบหัวและ ⌘Z บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
-| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) `e747fe7` style + `8ce8887` chore deploy แล้ว 2026-11-04 (workflow 41812662971) · `3486359` chore V2-17 ตรวจ CSS ที่ build — ยังไม่ push · **US-18 งานใหม่อยู่บนสุด** (PO 2026-11-05) `8a8e1e8` feat + `1f16b9d` chore + `ec8cd68` docs — ยังไม่ push · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
+| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) `e747fe7` style + `8ce8887` chore deploy แล้ว 2026-11-04 (workflow 41812662971) · `3486359` chore V2-17 ตรวจ CSS ที่ build · **US-18 งานใหม่อยู่บนสุด** (PO 2026-11-05) `8a8e1e8` feat + `1f16b9d` chore + `ec8cd68` docs — deploy แล้ว 2026-11-06 (workflow 42198544329) · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -196,6 +196,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - **ลองทำโค้ดพัง 7 แบบ จับได้ทั้งหมด:** (ก) คืนเป็นต่อท้าย → 60 ข้อแดง · (ข) หัว array แต่ order max+1 → 59 ข้อ · (ค) order = min−1 ไม่ renumber → **เฉพาะ AC-18.1/18.2/18.3** (พิสูจน์ว่า AC-18.x จำเป็น) · (ง) บนสุดในลิสต์แต่ต่อท้าย array → AC-18.1/18.2/18.3, AC-15.9, S2-22 · (จ) renumber done ด้วย → AC-16.2, AC-18.1/18.2, P1-61 · (ฉ) ↩ แทรกบนด้วย → P1-36, P1-61, S2-05, P2-17 · (ช) undo ไม่ถอดงานที่เพิ่ม → AC-18.3 + 19 ข้อของ slice 2
 - **เอกสารเก่า:** ผล M-01, M-19, M-22, M-23, M-25, M-26, M-27 ใน MANUAL_QA บันทึกตอนงานใหม่ต่อท้าย เป็นประวัติ (มีหมายเหตุในไฟล์)
 - เครื่องปิดฝาระหว่างรัน verify (AppleClamshellState = Yes) รอบ --pre-commit จึงเกิน 7 นาที ผลไม่กระทบ
+- **Deploy (2026-11-06, PO สั่ง push):** push 6 commit `3486359`…`f06da0f` (`8ce8887..f06da0f`) → workflow 42198544329 สำเร็จ → เว็บจริงได้ `index-DtxNxeTR.js` / `index-DY9OqMBe.css` เท่ากับ build ในเครื่องทุกไบต์ · CSS บนเว็บไม่มี `prefers-color-scheme` แล้ว (rule ค้างจากรอบ dark-only หายไป) · browser pane บนเว็บจริง (localStorage ว่างก่อนเริ่ม): พิมพ์ A, B → ลิสต์ B, A, localStorage B0 A1, พื้นดำ, console ไม่มี error → ล้าง localStorage หลังตรวจ
 
 ### การตัดสินใจของ v2
 
@@ -231,8 +232,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - `README.md` ยังเป็นเนื้อหา MVP1 และชี้ไป verify-phase2.sh
 - slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)
 - slice 2 push ตามคำสั่ง PO 2026-10-29 (M-24 PO ลองบน localhost แล้ว ผ่าน)
-- dark mode only deploy แล้ว 2026-11-04 (workflow 41812662971) · chore `3486359` (V2-17) + docs `0a2adb7` ยังไม่ push รอ PO สั่ง (push แล้ว CSS บนเว็บจริงจะไม่มี rule ของ variant `dark` ค้าง)
-- US-18 งานใหม่อยู่บนสุด `8a8e1e8` feat + `1f16b9d` chore + `ec8cd68` docs + docs sync ยังไม่ push รอ PO สั่ง · M-30 ใน browser pane ดู MANUAL_QA
+- dark mode only deploy แล้ว 2026-11-04 (workflow 41812662971) · V2-17 + docs และ US-18 deploy แล้ว 2026-11-06 (workflow 42198544329) — CSS บนเว็บไม่มี rule ของ variant `dark` ค้างแล้ว · M-30 ใน browser pane ดู MANUAL_QA
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
 - Export/Import JSON ตัดออกจาก v2 เพื่อรักษาขนาด เป็น P1 ถัดไป (`Store` มี `schemaVersion` รองรับแล้ว)
 
