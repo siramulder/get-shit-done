@@ -12,20 +12,23 @@ import { CardPointerSensor } from './cardPointerSensor'
 import { handleDragEnd } from './handleDragEnd'
 import { listCollisionDetection } from './listCollisionDetection'
 import { labels } from '../lib/labels'
-import type { Task } from '../types/task'
+import type { DueBadge, Task } from '../types/task'
 
 type Props = {
   tasks: Task[]
+  /** Due-date labels by task id, computed by App; a task without a due date has no entry. */
+  dueBadges: ReadonlyMap<string, DueBadge>
   labelledBy: string
   onMoveUp: (id: string) => void
   onMoveDown: (id: string) => void
   onComplete: (id: string) => void
   onDelete: (id: string) => void
   onReorder: (activeId: string, overId: string) => void
+  onSetDueDate: (id: string, dueDate: string | null) => void
   focusFallback: () => void
 }
 
-export function TaskList({ tasks, labelledBy, onReorder, ...rowHandlers }: Props) {
+export function TaskList({ tasks, dueBadges, labelledBy, onReorder, ...rowHandlers }: Props) {
   const sensors = useSensors(
     useSensor(CardPointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -58,6 +61,7 @@ export function TaskList({ tasks, labelledBy, onReorder, ...rowHandlers }: Props
             <TaskItem
               key={task.id}
               task={task}
+              dueBadge={dueBadges.get(task.id) ?? null}
               isFirst={index === 0}
               isLast={index === tasks.length - 1}
               {...rowHandlers}

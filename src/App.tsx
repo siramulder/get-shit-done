@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTasks } from './hooks/useTasks'
+import { dueBadge } from './lib/deadline'
 import { labels } from './lib/labels'
 import { answer, restart, startReview, type Answer, type ReviewState } from './lib/review'
 import { DoneSection } from './components/DoneSection'
@@ -8,6 +9,7 @@ import { ReviewMode } from './components/ReviewMode'
 import { TaskInput } from './components/TaskInput'
 import { TaskList } from './components/TaskList'
 import { UndoControls } from './components/UndoControls'
+import type { DueBadge } from './types/task'
 
 // One answer of the review mode: the state to return to, whether the list was swapped, and its label.
 type ReviewStep = { prevState: ReviewState; swapped: boolean; label: string }
@@ -29,6 +31,7 @@ function App() {
     deleteTask,
     moveTask,
     reorderTasks,
+    setDueDate,
     undo,
     redo,
     canUndo,
@@ -41,6 +44,15 @@ function App() {
   const inputRef = useRef<HTMLInputElement>(null)
   const focusInput = () => inputRef.current?.focus()
   const titleOf = (id: string) => todoTasks.find((t) => t.id === id)?.title ?? ''
+
+  // Due-date labels are worked out here, against the clock, on every render — components only get the result.
+  // A page left open past midnight therefore keeps yesterday's labels until the next action (AC-12.6).
+  const now = new Date()
+  const dueBadges = new Map<string, DueBadge>()
+  for (const task of todoTasks) {
+    const badge = dueBadge(task.dueDate, now)
+    if (badge !== null) dueBadges.set(task.id, badge)
+  }
 
   // Announced after undo / redo on the main page (the review mode announces through its own region).
   const [notice, setNotice] = useState('')
@@ -156,6 +168,7 @@ function App() {
     return (
       <ReviewMode
         tasks={todoTasks}
+        dueBadges={dueBadges}
         state={activeReview}
         onAnswer={answerReview}
         onRestart={() => restartReview(activeReview)}
@@ -226,12 +239,14 @@ function App() {
           ) : (
             <TaskList
               tasks={todoTasks}
+              dueBadges={dueBadges}
               labelledBy={todoHeadingId}
               onMoveUp={(id) => moveTask(id, 'up')}
               onMoveDown={(id) => moveTask(id, 'down')}
               onComplete={completeTask}
               onDelete={deleteTask}
               onReorder={reorderTasks}
+              onSetDueDate={setDueDate}
               focusFallback={focusInput}
             />
           )}

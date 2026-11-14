@@ -430,7 +430,9 @@ describe('v2 store and newer-version data', () => {
     setup()
     expect(todoTitles()).toEqual(['A', 'B'])
     expect(doneTitles()).toEqual(['เสร็จแล้ว'])
-    expect(screen.queryByText(/2026-10-17|17\/10\/2026/)).not.toBeInTheDocument() // no deadline UI in this slice
+    expect(screen.queryByText(/2026-10-17|17\/10\/2026/)).not.toBeInTheDocument() // the raw date is never shown …
+    expect(button(labels.due.buttonWithBadge('A', '17 ต.ค.'))).toBeInTheDocument() // … it reads as a label (slice 3)
+    expect(button(labels.due.button('B'))).toBeInTheDocument()
     expect(screen.queryByText(labels.newerVersion)).not.toBeInTheDocument()
     expect(addTaskBox()).toBeEnabled()
     expect(button(labels.addButton)).toBeEnabled()
@@ -996,5 +998,310 @@ describe('review-answer undo (slice 2)', () => {
     expect(undoButton()).toHaveAccessibleDescription(labels.history.add('D'))
     expect(fireEvent.keyDown(document.body, keyY({ ctrlKey: true }))).toBe(true)
     expect(todoTitles()).toEqual(['D', 'C', 'B', 'A'])
+  })
+})
+
+describe('deadline (slice 3)', () => {
+  const freeze = (date: Date) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(date)
+  }
+  const seedV2 = (tasks: Task[]) => localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks }))
+  const todo = (id: string, title: string, order: number, dueDate?: string): Task => ({
+    id, title, order, status: 'todo', createdAt: local(5, 1).toISOString(), ...(dueDate === undefined ? {} : { dueDate }),
+  })
+  const storedTasks = () =>
+    (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{"schemaVersion":2,"tasks":[]}') as Store).tasks
+  const storedByTitle = (title: string) => storedTasks().find((t) => t.title === title)
+  const dueButton = (title: string, badge?: string) =>
+    button(badge === undefined ? labels.due.button(title) : labels.due.buttonWithBadge(title, badge))
+  const dateInput = (title: string) => screen.getByLabelText<HTMLInputElement>(labels.due.dateInput(title))
+  const queryDateInput = (title: string) => screen.queryByLabelText(labels.due.dateInput(title))
+  // What picking a date in the browser's own picker does: one change with a complete YYYY-MM-DD value.
+  const pickDate = (title: string, value: string) => fireEvent.change(dateInput(title), { target: { value } })
+  const todoList = () => screen.getByRole('list', { name: labels.todoHeading })
+
+  it('AC-11.1 adding a task with Enter works as before: no date field appears and nothing is asked', async () => {
+    const { user } = setup()
+    await addTasks(user, 'A')
+    expect(todoTitles()).toEqual(['A'])
+    expect(document.querySelector('input[type="date"]')).toBeNull()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: labels.inputLabel })).toHaveFocus()
+    expect(dueButton('A')).toHaveAttribute('aria-expanded', 'false')
+    expect(Object.keys(storedByTitle('A') ?? {})).not.toContain('dueDate')
+  })
+
+  it('AC-11.2 pressing "กำหนดส่ง: {title}" and picking a date saves it at once and shows the badge', async () => {
+    freeze(local(17, 9))
+    const { user } = setup()
+    await addTasks(user, 'A', 'B')
+    await user.click(dueButton('A'))
+    expect(dateInput('A')).toHaveFocus()
+    pickDate('A', '2026-10-24')
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+    expect(within(todoList()).getByText('24 ต.ค.')).toBeInTheDocument()
+    expect(storedByTitle('A')?.dueDate).toBe('2026-10-24')
+    expect(dueButton('B')).toBeInTheDocument() // the other row is untouched
+    expect(Object.keys(storedByTitle('B') ?? {})).not.toContain('dueDate')
+    await user.click(button(labels.due.done))
+    expect(queryDateInput('A')).not.toBeInTheDocument()
+    expect(dueButton('A', '24 ต.ค.')).toHaveFocus()
+  })
+
+  it('AC-11.3 pressing the badge and then "ลบกำหนดส่ง" removes the due date and the badge', async () => {
+    freeze(local(17, 9))
+    seedV2([todo('a', 'A', 0, '2026-10-24'), todo('b', 'B', 1)])
+    const { user } = setup()
+    await user.click(dueButton('A', '24 ต.ค.'))
+    expect(dateInput('A')).toHaveValue('2026-10-24')
+    await user.click(button(labels.due.clear))
+    expect(within(todoList()).queryByText('24 ต.ค.')).not.toBeInTheDocument()
+    expect(queryDateInput('A')).not.toBeInTheDocument()
+    expect(dueButton('A')).toHaveFocus()
+    expect(Object.keys(storedByTitle('A') ?? {})).not.toContain('dueDate')
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.clearDue('A'))
+  })
+
+  it('AC-11.4 after setting a due date and closing the editor, ⌘Z removes it and ⇧⌘Z brings it back', async () => {
+    freeze(local(17, 9))
+    const { user } = setup()
+    await addTasks(user, 'A')
+    await user.click(dueButton('A'))
+    pickDate('A', '2026-10-24')
+    await user.click(button(labels.due.done))
+    expect(dueButton('A', '24 ต.ค.')).toHaveFocus()
+
+    expect(fireEvent.keyDown(document.activeElement ?? document.body, keyZ({ metaKey: true }))).toBe(false) // handled
+    expect(dueButton('A')).toBeInTheDocument()
+    expect(within(todoList()).queryByText('24 ต.ค.')).not.toBeInTheDocument()
+    expect(Object.keys(storedByTitle('A') ?? {})).not.toContain('dueDate')
+
+    expect(fireEvent.keyDown(document.activeElement ?? document.body, keyZ({ metaKey: true, shiftKey: true }))).toBe(false)
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+    expect(storedByTitle('A')?.dueDate).toBe('2026-10-24')
+  })
+
+  it('AC-12.5 a finished task shows no badge and no due-date button in "เสร็จวันนี้"; ↩ brings the badge back', async () => {
+    freeze(local(17, 9))
+    seedV2([todo('a', 'A', 0, '2026-10-15'), todo('b', 'B', 1)])
+    const { user } = setup()
+    expect(dueButton('A', labels.due.overdue(2))).toBeInTheDocument()
+    await user.click(button(labels.complete('A')))
+    expect(doneTitles()).toEqual(['A'])
+    expect(screen.queryByText(labels.due.overdue(2))).not.toBeInTheDocument()
+    expect(within(doneList()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      labels.uncomplete('A'),
+      labels.remove('A'),
+    ])
+    expect(within(doneList()).queryByText(labels.due.add)).not.toBeInTheDocument()
+    expect(doneList().querySelector('input')).toBeNull()
+
+    await user.click(button(labels.uncomplete('A')))
+    expect(todoTitles()).toEqual(['B', 'A'])
+    expect(dueButton('A', labels.due.overdue(2))).toBeInTheDocument()
+    expect(storedByTitle('A')?.dueDate).toBe('2026-10-15')
+  })
+
+  it('AC-12.6 left open across midnight the badge is still yesterday\'s; the next action recomputes it', async () => {
+    freeze(local(17, 23, 59))
+    seedV2([todo('a', 'A', 0, '2026-10-18'), todo('b', 'B', 1, '2026-10-17')])
+    const { user } = setup()
+    expect(dueButton('A', labels.due.tomorrow)).toBeInTheDocument()
+    expect(dueButton('B', labels.due.today)).toBeInTheDocument()
+
+    vi.setSystemTime(local(18, 0, 1))
+    expect(dueButton('A', labels.due.tomorrow)).toBeInTheDocument() // accepted limit: nothing re-renders by itself
+    expect(dueButton('B', labels.due.today)).toBeInTheDocument()
+
+    await user.click(button(labels.moveDown('A'))) // any action
+    expect(dueButton('A', labels.due.today)).toBeInTheDocument()
+    expect(dueButton('B', labels.due.overdue(1))).toBeInTheDocument()
+  })
+
+  it('AC-13.2 there is no control to sort by due date, and due dates never reorder the list', () => {
+    freeze(local(17, 9))
+    seedV2([todo('a', 'A', 0, '2026-10-24'), todo('b', 'B', 1), todo('c', 'C', 2, '2026-10-15')])
+    setup()
+    expect(todoTitles()).toEqual(['A', 'B', 'C']) // the overdue task stays where the user put it
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(document.querySelector('select')).toBeNull()
+    const sortWord = /เรียง|sort/i
+    for (const control of screen.getAllByRole('button')) {
+      expect(`${control.getAttribute('aria-label') ?? ''} ${control.textContent ?? ''}`).not.toMatch(sortWord)
+    }
+    expect(document.body.textContent).not.toMatch(sortWord)
+  })
+
+  it('AC-6.3 a review card shows the same badge text as the list row and carries it in its accessible name', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(local(17, 9))
+    seedV2([todo('a', 'A', 0, '2026-10-15'), todo('b', 'B', 1, '2026-10-17'), todo('c', 'C', 2)])
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<App />)
+    const late = labels.due.overdue(2)
+    const now = labels.due.today
+    expect(within(todoList()).getByText(late)).toBeInTheDocument()
+    expect(within(todoList()).getByText(now)).toBeInTheDocument()
+
+    await user.click(button(labels.review.button))
+    const dialog = () => screen.getByRole('dialog')
+    const live = () => dialog().querySelector('[aria-live]')?.textContent
+    const cardB = within(dialog()).getByRole('button', { name: labels.review.cardName('B', now) })
+    expect(cardB).toHaveAttribute('data-position', 'upper')
+    expect(within(cardB).getByText(now)).toBeInTheDocument()
+    const cardC = within(dialog()).getByRole('button', { name: 'C' }) // no due date: the plain title
+    expect(cardC).toHaveAttribute('data-position', 'lower')
+    expect(live()).toBe(labels.review.announcePair(labels.review.cardName('B', now), 'C', 1, 2))
+
+    await user.click(cardB)
+    act(() => vi.advanceTimersByTime(ANSWER_HOLD_MS))
+    const cardA = within(dialog()).getByRole('button', { name: labels.review.cardName('A', late) })
+    expect(cardA).toHaveAttribute('data-position', 'upper')
+    expect(within(cardA).getByText(late)).toBeInTheDocument()
+    expect(within(dialog()).getByRole('button', { name: labels.review.cardName('B', now) })).toHaveAttribute('data-position', 'lower')
+    expect(live()).toBe(
+      labels.review.announcePair(labels.review.cardName('A', late), labels.review.cardName('B', now), 2, 2),
+    )
+  })
+
+  it('S3-09 Escape in the date editor only closes the editor: focus returns to the due-date button, nothing is undone or closed', async () => {
+    freeze(local(17, 9))
+    const { user } = setup()
+    await addTasks(user, 'A', 'B')
+    await user.click(dueButton('A'))
+    pickDate('A', '2026-10-24')
+    const raw = localStorage.getItem(STORAGE_KEY)
+    expect(dateInput('A')).toHaveFocus()
+
+    await user.keyboard('{Escape}')
+    expect(queryDateInput('A')).not.toBeInTheDocument()
+    expect(dueButton('A', '24 ต.ค.')).toHaveFocus()
+    expect(todoTitles()).toEqual(['B', 'A'])
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.setDue('A')) // the history did not move
+    expect(redoButton()).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: labels.inputLabel })).toBeInTheDocument() // still the main page
+  })
+
+  it('S3-10 with focus in the date field ⌘Z / Ctrl+Z / ⇧⌘Z / Ctrl+Y belong to the browser: no app undo or redo, not prevented', async () => {
+    freeze(local(17, 9))
+    const { user } = setup()
+    await addTasks(user, 'A')
+    await user.click(dueButton('A'))
+    pickDate('A', '2026-10-24')
+    pickDate('A', '2026-10-27')
+    await user.click(undoButton()) // now there is something to undo (24) and something to redo (27)
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+    expect(redoButton()).toBeEnabled()
+    dateInput('A').focus()
+    expect(dateInput('A')).toHaveFocus()
+
+    for (const init of [
+      keyZ({ metaKey: true }),
+      keyZ({ ctrlKey: true }),
+      keyZ({ metaKey: true, shiftKey: true }),
+      keyY({ ctrlKey: true }),
+    ]) {
+      expect(fireEvent.keyDown(dateInput('A'), init)).toBe(true) // not prevented
+      expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+      expect(storedByTitle('A')?.dueDate).toBe('2026-10-24')
+      expect(undoButton()).toHaveAccessibleDescription(labels.history.setDue('A'))
+      expect(redoButton()).toBeEnabled()
+    }
+  })
+
+  it('S3-12 a new task lands on top without a badge, and setting a due date on another row moves nothing', async () => {
+    freeze(local(17, 9))
+    const { user } = setup()
+    await addTasks(user, 'A')
+    await user.click(dueButton('A'))
+    pickDate('A', '2026-10-24')
+    await user.click(button(labels.due.done))
+
+    await addTasks(user, 'B', 'C')
+    expect(todoTitles()).toEqual(['C', 'B', 'A'])
+    expect(dueButton('C')).toBeInTheDocument()
+    expect(dueButton('B')).toBeInTheDocument()
+    expect(within(todoList()).getAllByText('24 ต.ค.')).toHaveLength(1)
+
+    const orderBefore = storedTasks().map((t) => [t.title, t.order])
+    await user.click(dueButton('B'))
+    pickDate('B', '2026-10-16') // yesterday: overdue at once
+    expect(dueButton('B', labels.due.overdue(1))).toBeInTheDocument()
+    expect(todoTitles()).toEqual(['C', 'B', 'A'])
+    expect(storedTasks().map((t) => [t.title, t.order])).toEqual(orderBefore)
+    expect(orderBefore).toEqual([['C', 0], ['B', 1], ['A', 2]])
+  })
+
+  it('S3-15 an empty value from the date field removes nothing: the due date, the badge and the history stay as they were', async () => {
+    freeze(local(17, 9))
+    seedV2([todo('a', 'A', 0, '2026-10-24')])
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const { user } = setup()
+    await user.click(dueButton('A', '24 ต.ค.'))
+    pickDate('A', '') // what the browser reports while one part of the date is being retyped
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+    expect(undoButton()).toBeDisabled() // no "ลบกำหนดส่ง" entry slipped in
+    pickDate('A', '2026-10-27')
+    expect(dueButton('A', '27 ต.ค.')).toBeInTheDocument()
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.setDue('A'))
+    await user.click(undoButton())
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument() // one step back is the old date, not "no date"
+    expect(undoButton()).toBeDisabled()
+  })
+
+  it('S3-16 while the editor is open the date field follows a change made elsewhere ("เลิกทำ" in the header)', async () => {
+    freeze(local(17, 9))
+    const { user } = setup()
+    await addTasks(user, 'A')
+    await user.click(dueButton('A'))
+    pickDate('A', '2026-10-24')
+    pickDate('A', '2026-10-27')
+    expect(dateInput('A')).toHaveValue('2026-10-27')
+
+    await user.click(undoButton())
+    expect(dateInput('A')).toHaveValue('2026-10-24')
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+    await user.click(undoButton())
+    expect(dateInput('A')).toHaveValue('')
+    expect(dueButton('A')).toBeInTheDocument()
+    await user.click(redoButton())
+    expect(dateInput('A')).toHaveValue('2026-10-24')
+  })
+
+  it('S3-17 typing a whole date with the keyboard makes one history entry: the half-typed years never reach the task', async () => {
+    freeze(local(17, 9))
+    const { user } = setup()
+    await addTasks(user, 'A')
+    await user.click(dueButton('A'))
+    for (const value of ['0002-10-24', '0020-10-24', '0202-10-24']) {
+      pickDate('A', value)
+      expect(dueButton('A')).toBeInTheDocument() // still no badge — in particular no "เลยกำหนด 700000 วัน"
+      expect(Object.keys(storedByTitle('A') ?? {})).not.toContain('dueDate')
+      expect(undoButton()).toHaveAccessibleDescription(labels.history.add('A'))
+    }
+    pickDate('A', '2026-10-24')
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+    await user.click(undoButton()) // one step back is "no due date"
+    expect(dueButton('A')).toBeInTheDocument()
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.add('A'))
+  })
+
+  it('S3-17 retyping the year of an existing due date keeps the old date until the new year is complete', async () => {
+    freeze(local(17, 9))
+    seedV2([todo('a', 'A', 0, '2026-10-24')])
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const { user } = setup()
+    await user.click(dueButton('A', '24 ต.ค.'))
+    for (const value of ['0002-10-24', '0020-10-24', '0202-10-24']) pickDate('A', value)
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw)
+    expect(undoButton()).toBeDisabled()
+    pickDate('A', '2027-10-24')
+    expect(dueButton('A', '24 ต.ค. 2570')).toBeInTheDocument()
+    expect(undoButton()).toHaveAccessibleDescription(labels.history.setDue('A'))
   })
 })

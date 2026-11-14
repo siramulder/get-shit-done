@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { ReviewMode } from './ReviewMode'
 import { labels } from '../lib/labels'
 import { ANSWER_HOLD_MS, answer, startReview } from '../lib/review'
-import type { Task } from '../types/task'
+import type { DueBadge, Task } from '../types/task'
 
 const task = (id: string, order: number): Task => ({
   id,
@@ -17,11 +17,14 @@ const tasks = [task('A', 0), task('B', 1), task('C', 2), task('D', 3)]
 type UndoProps = { canUndo: boolean; undoLabel: string | null; undoCount: number; undoneLabel: string | null }
 const noUndo: UndoProps = { canUndo: false, undoLabel: null, undoCount: 0, undoneLabel: null }
 
-function renderMode(state = startReview(tasks.map((t) => t.id))!, undo: UndoProps = noUndo) {
+type Badges = ReadonlyMap<string, DueBadge>
+const noBadges: Badges = new Map()
+
+function renderMode(state = startReview(tasks.map((t) => t.id))!, undo: UndoProps = noUndo, dueBadges: Badges = noBadges) {
   const handlers = { onAnswer: vi.fn(), onRestart: vi.fn(), onClose: vi.fn(), onUndo: vi.fn() }
-  const view = render(<ReviewMode tasks={tasks} state={state} {...handlers} {...undo} />)
+  const view = render(<ReviewMode tasks={tasks} dueBadges={dueBadges} state={state} {...handlers} {...undo} />)
   const rerenderWith = (next = state, nextUndo = undo) =>
-    view.rerender(<ReviewMode tasks={tasks} state={next} {...handlers} {...nextUndo} />)
+    view.rerender(<ReviewMode tasks={tasks} dueBadges={dueBadges} state={next} {...handlers} {...nextUndo} />)
   return { ...handlers, rerenderWith, unmount: view.unmount }
 }
 
@@ -86,7 +89,7 @@ describe('ReviewMode', () => {
     expect(screen.getByRole('button', { name: labels.undo.redo })).toBeDisabled()
   })
 
-  it('AC-10.1 card names are the task titles only; the บน/ล่าง tags are hidden from assistive tech', () => {
+  it('AC-10.1 card names are the task titles only when the tasks have no due date; the บน/ล่าง tags are hidden from assistive tech', () => {
     renderMode()
     expect(screen.getByRole('button', { name: 'งาน C' })).toBe(card('upper'))
     expect(screen.getByRole('button', { name: 'งาน D' })).toBe(card('lower'))
@@ -218,5 +221,70 @@ describe('ReviewMode', () => {
     await user.click(screen.getByRole('button', { name: labels.review.close }))
     expect(onRestart).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('due-date badges on the cards (slice 3)', () => {
+  const overdue: DueBadge = { kind: 'overdue', text: labels.due.overdue(2) }
+  const today: DueBadge = { kind: 'today', text: labels.due.today }
+  const tomorrow: DueBadge = { kind: 'tomorrow', text: labels.due.tomorrow }
+  const later: DueBadge = { kind: 'later', text: '24 ต.ค.' }
+  const liveText = () => screen.getByRole('dialog').querySelector('[aria-live]')?.textContent
+
+  it('AC-6.3 both cards show the badge under the title, and the badge is part of the card name and of the announcement', () => {
+    renderMode(undefined, noUndo, new Map([['C', overdue], ['D', later]]))
+    expect(within(card('upper')).getByText('งาน C')).toBeInTheDocument()
+    expect(within(card('upper')).getByText(overdue.text)).toBeInTheDocument()
+    expect(within(card('lower')).getByText('งาน D')).toBeInTheDocument()
+    expect(within(card('lower')).getByText('24 ต.ค.')).toBeInTheDocument()
+    expect(card('upper')).toHaveAccessibleName(labels.review.cardName('งาน C', overdue.text))
+    expect(card('upper')).toHaveAccessibleName('งาน C, เลยกำหนด 2 วัน')
+    expect(card('lower')).toHaveAccessibleName(labels.review.cardName('งาน D', '24 ต.ค.'))
+    expect(liveText()).toBe(
+      labels.review.announcePair(labels.review.cardName('งาน C', overdue.text), labels.review.cardName('งาน D', '24 ต.ค.'), 1, 3),
+    )
+  })
+
+  it('AC-6.3 only the task that has a due date gets a badge; the other card keeps its plain title as its name', () => {
+    renderMode(undefined, noUndo, new Map([['D', today]]))
+    expect(card('upper')).toHaveAccessibleName('งาน C')
+    expect(within(card('upper')).queryByText(today.text)).not.toBeInTheDocument()
+    expect(card('lower')).toHaveAccessibleName(labels.review.cardName('งาน D', today.text))
+    expect(liveText()).toBe(labels.review.announcePair('งาน C', labels.review.cardName('งาน D', today.text), 1, 3))
+    // S1-10 still holds: the badge is a child, the card class is the same on both
+    expect(card('upper').className).toBe(card('lower').className)
+  })
+
+  it('AC-6.3 after an answer-undo the restored pair is announced with its badges too', () => {
+    renderMode(undefined, { canUndo: false, undoLabel: null, undoCount: 1, undoneLabel: labels.review.answerUpper('งาน C') }, new Map([['C', overdue]]))
+    expect(liveText()).toBe(
+      labels.review.announceUndo(labels.review.answerUpper('งาน C'), labels.review.cardName('งาน C', overdue.text), 'งาน D', 1, 3),
+    )
+  })
+
+  it.each<[string, DueBadge]>([
+    ['overdue', overdue],
+    ['today', today],
+    ['tomorrow', tomorrow],
+    ['later', later],
+  ])('S3-11 a %s badge on a neon card never uses muted text', (_kind, badge) => {
+    renderMode(undefined, noUndo, new Map([['C', badge], ['D', badge]]))
+    for (const position of ['upper', 'lower'] as const) {
+      const shown = within(card(position)).getByText(badge.text)
+      expect(card(position).querySelectorAll('.text-muted')).toHaveLength(0)
+      expect(shown).not.toHaveClass('text-muted')
+      expect(shown).not.toHaveClass('text-ink') // ink is near-white: unreadable on neon
+      expect(shown).toHaveClass('text-on-neon')
+    }
+  })
+
+  it('S3-11 on a card the overdue badge keeps its hot fill; the "วันนี้" dot is on-neon, not hot', () => {
+    renderMode(undefined, noUndo, new Map([['C', overdue], ['D', today]]))
+    const late = within(card('upper')).getByText(overdue.text)
+    expect(late).toHaveClass('bg-hot', 'text-on-neon', 'rounded-[6px]')
+    const now = within(card('lower')).getByText(today.text)
+    const dot = now.querySelector('[aria-hidden="true"]')
+    expect(dot).toHaveClass('bg-on-neon')
+    expect(card('lower').querySelector('.bg-hot')).toBeNull()
   })
 })

@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DndContext, KeyboardSensor, useSensor, useSensors, type DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { TaskItem } from './TaskItem'
 import { CardPointerSensor } from './cardPointerSensor'
 import { labels } from '../lib/labels'
-import type { Task } from '../types/task'
+import type { DueBadge, Task } from '../types/task'
 
 const makeTask = (title: string): Task => ({
   id: 'task-1',
@@ -33,13 +33,15 @@ function TestDnd({ children, onDragStart }: { children: ReactNode; onDragStart?:
   )
 }
 
-function renderItem(task: Task, position = MIDDLE, onDragStart?: OnDragStart) {
-  const handlers = { onMoveUp: vi.fn(), onMoveDown: vi.fn(), onComplete: vi.fn(), onDelete: vi.fn(), focusFallback: vi.fn() }
+function renderItem(task: Task, position = MIDDLE, onDragStart?: OnDragStart, dueBadge: DueBadge | null = null) {
+  const handlers = {
+    onMoveUp: vi.fn(), onMoveDown: vi.fn(), onComplete: vi.fn(), onDelete: vi.fn(), focusFallback: vi.fn(), onSetDueDate: vi.fn(),
+  }
   render(
     <TestDnd onDragStart={onDragStart}>
       <SortableContext items={[task.id]}>
         <ul>
-          <TaskItem task={task} {...position} {...handlers} />
+          <TaskItem task={task} dueBadge={dueBadge} {...position} {...handlers} />
         </ul>
       </SortableContext>
     </TestDnd>,
@@ -104,6 +106,7 @@ describe('TaskItem', () => {
     renderItem(makeTask('A'))
     const expectedOrder = [
       labels.dragHandle('A'),
+      labels.due.button('A'), // v2 slice 3: the due-date button sits under the title, so it comes right after the handle
       labels.moveUp('A'),
       labels.moveDown('A'),
       labels.complete('A'),
@@ -197,5 +200,173 @@ describe('P2-50 a card drags from anywhere except its buttons', () => {
       if (original) Object.defineProperty(Element.prototype, 'scrollIntoView', original)
       else delete (Element.prototype as Partial<Element>).scrollIntoView
     }
+  })
+})
+
+describe('due date in a row (slice 3)', () => {
+  const PRIMARY_BUTTON = { isPrimary: true, button: 0 }
+  const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
+  const withDue = (dueDate: string): Task => ({ ...makeTask('A'), dueDate })
+  const overdue: DueBadge = { kind: 'overdue', text: labels.due.overdue(2) }
+  const today: DueBadge = { kind: 'today', text: labels.due.today }
+  const tomorrow: DueBadge = { kind: 'tomorrow', text: labels.due.tomorrow }
+  const later: DueBadge = { kind: 'later', text: '24 ต.ค.' }
+  const dateInput = () => screen.getByLabelText<HTMLInputElement>(labels.due.dateInput('A'))
+  const queryDateInput = () => screen.queryByLabelText(labels.due.dateInput('A'))
+  // What a sighted user reads on an element: its text without the parts hidden from assistive tech.
+  function visibleText(element: HTMLElement): string {
+    const clone = element.cloneNode(true) as HTMLElement
+    clone.querySelectorAll('[aria-hidden="true"]').forEach((hidden) => hidden.remove())
+    return (clone.textContent ?? '').trim()
+  }
+
+  it('AC-11.2 the row offers a due-date button; pressing it opens a date field that reports the picked date at once', async () => {
+    const user = userEvent.setup()
+    const { onSetDueDate } = renderItem(makeTask('A'))
+    expect(queryDateInput()).not.toBeInTheDocument()
+    const dueButton = button(labels.due.button('A'))
+    expect(dueButton).toHaveAttribute('aria-expanded', 'false')
+    await user.click(dueButton)
+    expect(dueButton).toHaveAttribute('aria-expanded', 'true')
+    expect(dateInput()).toHaveFocus()
+    expect(dateInput()).toHaveAttribute('type', 'date')
+    expect(dateInput()).toHaveValue('')
+    expect(screen.queryByRole('button', { name: labels.due.clear })).not.toBeInTheDocument() // nothing to remove yet
+    fireEvent.change(dateInput(), { target: { value: '2026-10-24' } })
+    expect(onSetDueDate).toHaveBeenCalledExactlyOnceWith('task-1', '2026-10-24')
+    expect(dateInput()).toBeInTheDocument() // the editor stays open until the user closes it
+    await user.click(button(labels.due.done))
+    expect(queryDateInput()).not.toBeInTheDocument()
+    expect(dueButton).toHaveFocus()
+    expect(onSetDueDate).toHaveBeenCalledTimes(1)
+  })
+
+  it('AC-11.3 with a due date the editor shows it and "ลบกำหนดส่ง" removes it, closes the editor and returns focus', async () => {
+    const user = userEvent.setup()
+    const { onSetDueDate } = renderItem(withDue('2026-10-24'), MIDDLE, undefined, later)
+    const dueButton = button(labels.due.buttonWithBadge('A', '24 ต.ค.'))
+    await user.click(dueButton)
+    expect(dateInput()).toHaveValue('2026-10-24')
+    await user.click(button(labels.due.clear))
+    expect(onSetDueDate).toHaveBeenCalledExactlyOnceWith('task-1', null)
+    expect(queryDateInput()).not.toBeInTheDocument()
+    expect(dueButton).toHaveFocus()
+  })
+
+  it('AC-12.1 the overdue badge in the list is a hot fill with on-neon text and a 6px radius', () => {
+    renderItem(withDue('2026-10-15'), MIDDLE, undefined, overdue)
+    const badge = screen.getByText(overdue.text)
+    expect(badge).toHaveClass('bg-hot', 'text-on-neon', 'rounded-[6px]')
+  })
+
+  it('AC-12.2 the "วันนี้" badge in the list is ink text behind a decorative hot dot; "พรุ่งนี้" is muted text', () => {
+    renderItem(withDue('2026-10-17'), MIDDLE, undefined, today)
+    const badge = screen.getByText(today.text)
+    expect(badge).toHaveClass('text-ink')
+    expect(badge).not.toHaveClass('bg-hot')
+    const dot = badge.querySelector('[aria-hidden="true"]')
+    expect(dot).toHaveClass('bg-hot')
+    expect(dot).toHaveTextContent('')
+    cleanup()
+
+    renderItem(withDue('2026-10-18'), MIDDLE, undefined, tomorrow)
+    const next = screen.getByText(tomorrow.text)
+    expect(next).toHaveClass('text-muted')
+    expect(next.querySelector('.bg-hot')).toBeNull()
+    expect(next).not.toHaveClass('bg-hot')
+  })
+
+  it('AC-12.3 a later date in the list is muted text with no fill and no dot', () => {
+    renderItem(withDue('2026-10-24'), MIDDLE, undefined, later)
+    const badge = screen.getByText(later.text)
+    expect(badge).toHaveClass('text-muted')
+    expect(badge).not.toHaveClass('bg-hot')
+    expect(badge.querySelector('.bg-hot')).toBeNull()
+  })
+
+  it('S3-08 pointerdown on the due-date button, the date field or anywhere inside the editor never starts a drag', async () => {
+    const user = userEvent.setup()
+    const onDragStart = vi.fn()
+    renderItem(withDue('2026-10-15'), MIDDLE, onDragStart, overdue)
+    const dueButton = button(labels.due.buttonWithBadge('A', overdue.text))
+    fireEvent.pointerDown(dueButton, PRIMARY_BUTTON)
+    fireEvent.pointerDown(screen.getByText(overdue.text), PRIMARY_BUTTON) // the badge inside the button
+    await user.click(dueButton)
+    const editor = dateInput().parentElement as HTMLElement // the editor's own box: its empty space
+    expect(editor).toContainElement(button(labels.due.done))
+    for (const target of [dateInput(), editor, button(labels.due.clear), button(labels.due.done)]) {
+      fireEvent.pointerDown(target, PRIMARY_BUTTON)
+    }
+    expect(onDragStart).not.toHaveBeenCalled()
+
+    // Positive control: the same event on the title does start a drag, so the check above is meaningful.
+    fireEvent.pointerDown(screen.getByText('A'), PRIMARY_BUTTON)
+    expect(onDragStart).toHaveBeenCalledTimes(1)
+    fireEvent.pointerUp(document, PRIMARY_BUTTON)
+    await tick(60) // dnd-kit swallows clicks for 50ms after a pointer drag
+  })
+
+  it('S3-09 Escape inside the editor closes it and returns focus to the due-date button, from the field or from a button', async () => {
+    const user = userEvent.setup()
+    const { onSetDueDate } = renderItem(withDue('2026-10-15'), MIDDLE, undefined, overdue)
+    const dueButton = button(labels.due.buttonWithBadge('A', overdue.text))
+    await user.click(dueButton)
+    expect(dateInput()).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(queryDateInput()).not.toBeInTheDocument()
+    expect(dueButton).toHaveFocus()
+
+    await user.keyboard('{Enter}') // the button is a real button: Enter opens the editor again
+    expect(dateInput()).toHaveFocus()
+    button(labels.due.done).focus()
+    await user.keyboard('{Escape}')
+    expect(queryDateInput()).not.toBeInTheDocument()
+    expect(dueButton).toHaveFocus()
+    expect(onSetDueDate).not.toHaveBeenCalled()
+  })
+
+  it.each<[string, Task, DueBadge | null]>([
+    ['no due date', makeTask('A'), null],
+    ['an overdue badge', withDue('2026-10-15'), overdue],
+    ['a "วันนี้" badge', withDue('2026-10-17'), today],
+    ['a "พรุ่งนี้" badge', withDue('2026-10-18'), tomorrow],
+    ['a date badge', withDue('2026-10-24'), later],
+  ])('S3-13 with %s the accessible name of the due-date button contains the text shown on it', (_label, task, badge) => {
+    renderItem(task, MIDDLE, undefined, badge)
+    const name = badge === null ? labels.due.button('A') : labels.due.buttonWithBadge('A', badge.text)
+    const dueButton = button(name)
+    const shown = visibleText(dueButton)
+    expect(shown).toBe(badge === null ? labels.due.add : badge.text)
+    expect(dueButton).toHaveAccessibleName(expect.stringContaining(shown))
+    expect(dueButton).toHaveAccessibleName(expect.stringContaining('A'))
+  })
+
+  it('S3-15 an empty value from the date field (a cleared day / month / year part) is ignored: nothing is removed', async () => {
+    const user = userEvent.setup()
+    const { onSetDueDate } = renderItem(withDue('2026-10-24'), MIDDLE, undefined, later)
+    await user.click(button(labels.due.buttonWithBadge('A', '24 ต.ค.')))
+    fireEvent.change(dateInput(), { target: { value: '' } })
+    expect(onSetDueDate).not.toHaveBeenCalled()
+    expect(dateInput()).toBeInTheDocument()
+    expect(button(labels.due.buttonWithBadge('A', '24 ต.ค.'))).toBeInTheDocument()
+    expect(button(labels.due.clear)).toBeInTheDocument() // removing still goes through this button only
+    // … and typing the rest of the date afterwards is reported normally
+    fireEvent.change(dateInput(), { target: { value: '2026-10-27' } })
+    expect(onSetDueDate).toHaveBeenCalledExactlyOnceWith('task-1', '2026-10-27')
+  })
+
+  it('S3-17 a year below 1000 from the date field (the year being typed digit by digit) is ignored until the year is complete', async () => {
+    const user = userEvent.setup()
+    const { onSetDueDate } = renderItem(makeTask('A'))
+    await user.click(button(labels.due.button('A')))
+    // What Chromium reports while "2026" is typed into the year part of 20/11/____.
+    for (const value of ['0002-11-20', '0020-11-20', '0202-11-20', '0999-12-31']) {
+      fireEvent.change(dateInput(), { target: { value } })
+    }
+    expect(onSetDueDate).not.toHaveBeenCalled()
+    fireEvent.change(dateInput(), { target: { value: '2026-11-20' } })
+    expect(onSetDueDate).toHaveBeenCalledExactlyOnceWith('task-1', '2026-11-20')
+    fireEvent.change(dateInput(), { target: { value: '1000-01-01' } }) // four digits: a complete year, however old
+    expect(onSetDueDate).toHaveBeenLastCalledWith('task-1', '1000-01-01')
   })
 })

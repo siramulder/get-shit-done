@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useState } from 'react'
 import { arrayMove } from '@dnd-kit/sortable'
 import type { Task } from '../types/task'
-import { loadStore, saveTasks } from '../lib/storage'
+import { isCalendarDate, loadStore, saveTasks } from '../lib/storage'
 import { isToday } from '../lib/date'
 import { labels } from '../lib/labels'
 
@@ -126,13 +126,40 @@ export function useTasks() {
     apply(
       (prev) => {
         const order = nextOrder(prev)
+        // Back to the bottom of the list with everything it had (the due date too) except completedAt.
         return prev.map((t): Task =>
           t.id === id && t.status === 'done'
-            ? { id: t.id, title: t.title, order, status: 'todo', createdAt: t.createdAt }
+            ? {
+                id: t.id,
+                title: t.title,
+                order,
+                status: 'todo',
+                createdAt: t.createdAt,
+                ...(t.dueDate === undefined ? {} : { dueDate: t.dueDate }),
+              }
             : t,
         )
       },
       (prev) => labels.history.uncomplete(titleOf(prev, id)),
+    )
+  }
+
+  // A due date is a label only: setting or removing it never touches `order` or the position in the array.
+  // `null` removes the field. Todo tasks only; an invalid date or the value the task already has is a no-op.
+  function setDueDate(id: string, dueDate: string | null) {
+    if (dueDate !== null && !isCalendarDate(dueDate)) return
+    apply(
+      (prev) => {
+        const target = prev.find((t) => t.id === id)
+        if (target === undefined || target.status !== 'todo' || (target.dueDate ?? null) === dueDate) return prev
+        return prev.map((t): Task => {
+          if (t !== target) return t
+          if (dueDate !== null) return { ...t, dueDate }
+          return { id: t.id, title: t.title, order: t.order, status: t.status, createdAt: t.createdAt }
+        })
+      },
+      (prev) =>
+        dueDate === null ? labels.history.clearDue(titleOf(prev, id)) : labels.history.setDue(titleOf(prev, id)),
     )
   }
 
@@ -194,6 +221,7 @@ export function useTasks() {
     deleteTask,
     moveTask,
     reorderTasks,
+    setDueDate,
     undo,
     redo,
     canUndo: !newerVersion && lastPast !== undefined,

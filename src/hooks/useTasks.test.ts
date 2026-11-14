@@ -569,11 +569,16 @@ describe('undo / redo history (slice 2)', () => {
     ['reorderTasks (drag)', (r) => r.current.reorderTasks(idOf(r, 'A'), idOf(r, 'C'))],
     ['moveTask from the review (swap)', (r) => r.current.moveTask(idOf(r, 'A'), 'up', 'swap')], // A is at the bottom
     ['deleteTask', (r) => r.current.deleteTask(idOf(r, 'A'))],
-  ])('AC-15.2 undo after %s restores the exact previous state, completedAt included', (_name, run) => {
+    ['setDueDate', (r) => r.current.setDueDate(idOf(r, 'B'), '2026-10-20')],
+    ['setDueDate on a task that already has one', (r) => r.current.setDueDate(idOf(r, 'C'), '2026-10-20')],
+    ['setDueDate(null) (clearing the due date)', (r) => r.current.setDueDate(idOf(r, 'C'), null)],
+  ])('AC-15.2 undo after %s restores the exact previous state, completedAt and dueDate included', (_name, run) => {
     freezeAt(local(5, 9))
     const { result } = setup('A', 'B', 'C', 'D')
     act(() => result.current.completeTask(idOf(result, 'D')))
+    act(() => result.current.setDueDate(idOf(result, 'C'), '2026-10-17')) // every undo below must bring this back too
     const before = snapshot(result)
+    expect(before.todo.find((t) => t.title === 'C')?.dueDate).toBe('2026-10-17')
     act(() => run(result))
     expect(snapshot(result)).not.toStrictEqual(before)
     act(() => result.current.undo())
@@ -743,5 +748,175 @@ describe('undo / redo history (slice 2)', () => {
     act(() => result.current.redo())
     expect(stored().map((t) => t.title)).toEqual(['B', 'A'])
     expect(stored()).toStrictEqual([...result.current.todoTasks])
+  })
+})
+
+describe('due date (slice 3)', () => {
+  const seedV2 = (tasks: Task[]) => localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: 2, tasks }))
+  const rawStore = () => localStorage.getItem(STORAGE_KEY)
+  const a: Task = { id: 'a', title: 'A', order: 0, status: 'todo', createdAt: '2026-10-05T01:00:00.000Z' }
+  const b: Task = { id: 'b', title: 'B', order: 1, status: 'todo', createdAt: '2026-10-05T02:00:00.000Z' }
+  const c: Task = { id: 'c', title: 'C', order: 2, status: 'todo', createdAt: '2026-10-05T03:00:00.000Z' }
+  // Finished "today" for a clock frozen on 17 October 2026.
+  const d: Task = {
+    id: 'd', title: 'D', order: 7, status: 'done', createdAt: '2026-10-05T04:00:00.000Z', completedAt: local(17, 8).toISOString(),
+  }
+  const todoById = (result: HookResult, id: string) => result.current.todoTasks.find((t) => t.id === id)
+
+  it('AC-11.2 setDueDate saves the date on the task and in localStorage at once', () => {
+    seedV2([a, b])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.setDueDate('a', '2026-10-24'))
+    expect(todoById(result, 'a')).toStrictEqual({ ...a, dueDate: '2026-10-24' })
+    expect(JSON.parse(rawStore() ?? 'null')).toStrictEqual({ schemaVersion: 2, tasks: [{ ...a, dueDate: '2026-10-24' }, b] })
+    // changing it again replaces the value
+    act(() => result.current.setDueDate('a', '2026-11-02'))
+    expect(todoById(result, 'a')?.dueDate).toBe('2026-11-02')
+    expect(stored()).toStrictEqual([{ ...a, dueDate: '2026-11-02' }, b])
+  })
+
+  it('AC-11.3 setDueDate(null) removes the dueDate field itself, in state and in localStorage', () => {
+    seedV2([{ ...a, dueDate: '2026-10-24' }, b])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.setDueDate('a', null))
+    const task = todoById(result, 'a')
+    expect(task).toStrictEqual(a)
+    expect(Object.keys(task ?? {})).not.toContain('dueDate') // not `dueDate: undefined`
+    expect(rawStore()).toBe(JSON.stringify({ schemaVersion: 2, tasks: [a, b] }))
+  })
+
+  it('AC-11.4 undo takes a new due date away and redo brings it back', () => {
+    seedV2([a, b])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.setDueDate('a', '2026-10-24'))
+    act(() => result.current.undo())
+    expect(todoById(result, 'a')).toStrictEqual(a)
+    expect(stored()).toStrictEqual([a, b])
+    act(() => result.current.redo())
+    expect(todoById(result, 'a')).toStrictEqual({ ...a, dueDate: '2026-10-24' })
+    expect(stored()).toStrictEqual([{ ...a, dueDate: '2026-10-24' }, b])
+    // and the other way round: undo of a removal brings the date back
+    act(() => result.current.setDueDate('a', null))
+    act(() => result.current.undo())
+    expect(todoById(result, 'a')?.dueDate).toBe('2026-10-24')
+  })
+
+  it('AC-13.1 a due date of yesterday on C leaves the list order and every order value untouched', () => {
+    freezeAt(local(17, 9))
+    seedV2([a, b, c, d])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.setDueDate('c', '2026-10-16'))
+    expect(titles(result.current.todoTasks)).toEqual(['A', 'B', 'C'])
+    expect(result.current.todoTasks).toStrictEqual([a, b, { ...c, dueDate: '2026-10-16' }])
+    expect(result.current.doneTodayTasks).toStrictEqual([d])
+    expect(stored()).toStrictEqual([a, b, { ...c, dueDate: '2026-10-16' }, d]) // same array position, same order numbers
+    // … and neither does changing or removing it, on any row
+    act(() => result.current.setDueDate('a', '2026-12-31'))
+    act(() => result.current.setDueDate('c', null))
+    expect(stored()).toStrictEqual([{ ...a, dueDate: '2026-12-31' }, b, c, d])
+    expect(result.current.todoTasks.map((t) => [t.title, t.order])).toEqual([['A', 0], ['B', 1], ['C', 2]])
+  })
+
+  it('AC-12.5 a task with a due date keeps it through complete → uncomplete', () => {
+    freezeAt(local(17, 9))
+    seedV2([{ ...a, dueDate: '2026-10-24' }, b])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.completeTask('a'))
+    expect(result.current.doneTodayTasks[0]).toStrictEqual({
+      ...a, dueDate: '2026-10-24', status: 'done', completedAt: local(17, 9).toISOString(),
+    })
+    act(() => result.current.uncompleteTask('a'))
+    // back at the bottom of the list, with everything it had except completedAt
+    expect(result.current.todoTasks).toStrictEqual([b, { ...a, order: 2, dueDate: '2026-10-24' }])
+    expect(Object.keys(todoById(result, 'a') ?? {})).not.toContain('completedAt')
+    expect(stored().find((t) => t.id === 'a')).toStrictEqual({ ...a, order: 2, dueDate: '2026-10-24' })
+  })
+
+  it('AC-12.5 a task without a due date comes back from done without one', () => {
+    freezeAt(local(17, 9))
+    seedV2([a, b])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.completeTask('a'))
+    act(() => result.current.uncompleteTask('a'))
+    expect(todoById(result, 'a')).toStrictEqual({ ...a, order: 2 })
+    expect(Object.keys(todoById(result, 'a') ?? {})).not.toContain('dueDate')
+  })
+
+  it.each([['2026-02-30'], ['abc'], ['2026-2-3'], ['2026-10-17T00:00:00.000Z'], ['17/10/2026'], ['']])(
+    'S3-03 an invalid date (%j) is a no-op and creates no history entry',
+    (value) => {
+      seedV2([{ ...a, dueDate: '2026-10-24' }, b])
+      const raw = rawStore()
+      const setItem = vi.spyOn(Storage.prototype, 'setItem')
+      const { result } = renderHook(() => useTasks())
+      act(() => result.current.setDueDate('a', value))
+      act(() => result.current.setDueDate('b', value))
+      expect(todoById(result, 'a')?.dueDate).toBe('2026-10-24')
+      expect(Object.keys(todoById(result, 'b') ?? {})).not.toContain('dueDate')
+      expect(result.current.canUndo).toBe(false)
+      expect(setItem).not.toHaveBeenCalled()
+      expect(rawStore()).toBe(raw)
+    },
+  )
+
+  it('S3-04 setting the value a task already has, clearing a task that has none, or an unknown id creates no entry', () => {
+    seedV2([{ ...a, dueDate: '2026-10-24' }, b])
+    const raw = rawStore()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.setDueDate('a', '2026-10-24'))
+    act(() => result.current.setDueDate('b', null))
+    act(() => result.current.setDueDate('nope', '2026-10-24'))
+    act(() => result.current.setDueDate('nope', null))
+    expect(result.current.canUndo).toBe(false)
+    expect(setItem).not.toHaveBeenCalled()
+    expect(rawStore()).toBe(raw)
+  })
+
+  it('S3-05 a done task cannot get, change or lose a due date', () => {
+    freezeAt(local(17, 9))
+    const doneWithDue: Task = { ...d, id: 'e', title: 'E', dueDate: '2026-10-10' }
+    seedV2([a, d, doneWithDue])
+    const raw = rawStore()
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.setDueDate('d', '2026-10-24'))
+    act(() => result.current.setDueDate('e', '2026-10-24'))
+    act(() => result.current.setDueDate('e', null))
+    expect(result.current.doneTodayTasks).toStrictEqual([d, doneWithDue])
+    expect(result.current.canUndo).toBe(false)
+    expect(rawStore()).toBe(raw)
+  })
+
+  it('S3-06 newer-version data: setDueDate does nothing and never writes', () => {
+    const raw =
+      '{\n  "schemaVersion": 3,\n  "tasks": [\n    {"id": "a", "title": "A", "order": 0, "status": "todo", "createdAt": "2026-10-05T01:00:00.000Z"}\n  ]\n}\n'
+    localStorage.setItem(STORAGE_KEY, raw)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const { result } = renderHook(() => useTasks())
+    expect(result.current.newerVersion).toBe(true)
+    act(() => result.current.setDueDate('a', '2026-10-24'))
+    act(() => result.current.setDueDate('a', null))
+    expect(result.current.todoTasks).toEqual([])
+    expect(result.current.canUndo).toBe(false)
+    expect(setItem).not.toHaveBeenCalled()
+    expect(rawStore()).toBe(raw)
+  })
+
+  it('S3-07 history labels say whether the due date was set or removed, and for which task', () => {
+    seedV2([a, b])
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.setDueDate('a', '2026-10-24'))
+    expect(result.current.lastUndoLabel).toBe(labels.history.setDue('A'))
+    expect(result.current.lastUndoLabel).toBe('ตั้งกำหนดส่ง "A"')
+    act(() => result.current.setDueDate('a', '2026-10-25')) // changing an existing date is still "set"
+    expect(result.current.lastUndoLabel).toBe(labels.history.setDue('A'))
+    act(() => result.current.setDueDate('b', '2026-10-25'))
+    expect(result.current.lastUndoLabel).toBe(labels.history.setDue('B'))
+    act(() => result.current.setDueDate('a', null))
+    expect(result.current.lastUndoLabel).toBe(labels.history.clearDue('A'))
+    expect(result.current.lastUndoLabel).toBe('ลบกำหนดส่ง "A"')
+    act(() => result.current.undo())
+    expect(result.current.lastRedoLabel).toBe(labels.history.clearDue('A'))
+    expect(result.current.lastUndoLabel).toBe(labels.history.setDue('B'))
   })
 })

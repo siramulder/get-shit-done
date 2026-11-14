@@ -1,7 +1,8 @@
 import { PointerSensor, type DraggableNode, type PointerSensorOptions } from '@dnd-kit/core'
 import type { PointerEvent } from 'react'
 
-const CONTROLS = 'button, a, input, textarea, select'
+// `[data-no-drag]` marks a whole area of a card (the inline due-date editor) where no drag may start, empty space included.
+const CONTROLS = 'button, a, input, textarea, select, [data-no-drag]'
 
 // A pointer drag may start anywhere on a card except on its own controls; the drag handle is the one control allowed.
 export class CardPointerSensor extends PointerSensor {

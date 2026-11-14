@@ -13,6 +13,17 @@ export const labels = {
   remove: (title: string) => `ลบงาน: ${title}`,
   uncomplete: (title: string) => `ย้อนกลับ: ${title}`,
   dragHandle: (title: string) => `ลากเพื่อจัดลำดับ: ${title}`,
+  due: {
+    add: 'กำหนดส่ง',
+    button: (title: string) => `กำหนดส่ง: ${title}`,
+    buttonWithBadge: (title: string, badge: string) => `กำหนดส่ง: ${title}, ${badge}`,
+    dateInput: (title: string) => `วันกำหนดส่ง: ${title}`,
+    clear: 'ลบกำหนดส่ง',
+    done: 'เสร็จ',
+    overdue: (days: number) => `เลยกำหนด ${days} วัน`,
+    today: 'วันนี้',
+    tomorrow: 'พรุ่งนี้',
+  },
   dnd: {
     roleDescription: 'งานที่จัดลำดับได้',
     instructions:
@@ -44,6 +55,7 @@ export const labels = {
     answerSkip: (upper: string, lower: string) => `ข้ามคู่ "${upper}" กับ "${lower}"`,
     announceUndo: (label: string, upper: string, lower: string, k: number, total: number) =>
       `เลิกทำ: ${label} อันไหนทำก่อน? บน: ${upper} ล่าง: ${lower} คำถาม ${k} จาก ${total}`,
+    cardName: (title: string, badge: string) => `${title}, ${badge}`,
   },
   undo: {
     undo: 'เลิกทำ',
@@ -60,5 +72,7 @@ export const labels = {
     uncomplete: (title: string) => `ย้อนกลับ "${title}"`,
     move: (title: string) => `เลื่อนลำดับ "${title}"`,
     swap: (title: string) => `สลับลำดับ "${title}"`,
+    setDue: (title: string) => `ตั้งกำหนดส่ง "${title}"`,
+    clearDue: (title: string) => `ลบกำหนดส่ง "${title}"`,
   },
 }

@@ -1,11 +1,14 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { labels } from '../lib/labels'
 import { ANSWER_HOLD_MS, currentPair, questionNumber, totalQuestions, type Answer, type ReviewState } from '../lib/review'
-import type { Task } from '../types/task'
+import type { DueBadge, Task } from '../types/task'
+import { DueBadgeLabel } from './DueBadgeLabel'
 import { UndoControls } from './UndoControls'
 
 type Props = {
   tasks: Task[]
+  /** Due-date labels by task id, computed by App; shown under the title on both cards (AC-6.3). */
+  dueBadges: ReadonlyMap<string, DueBadge>
   state: ReviewState
   onAnswer: (answer: Answer) => void
   onRestart: () => void
@@ -30,6 +33,7 @@ type Held = { state: ReviewState; choice: Answer; undoCount: number }
 
 export function ReviewMode({
   tasks,
+  dueBadges,
   state,
   onAnswer,
   onRestart,
@@ -54,6 +58,11 @@ export function ReviewMode({
   const pair = currentPair(shown)
   const finished = currentPair(state) === null
   const titleOf = (id: string) => tasks.find((t) => t.id === id)?.title ?? ''
+  // What a card is called: its title, plus the due-date label when it has one.
+  const nameOf = (id: string) => {
+    const badge = dueBadges.get(id)
+    return badge ? labels.review.cardName(titleOf(id), badge.text) : titleOf(id)
+  }
   const topTitle = tasks[0]?.title ?? ''
 
   // Cards keep their element between pairs, so focus stays on the card that was pressed.
@@ -121,14 +130,14 @@ export function ReviewMode({
     ? undoneLabel !== null
       ? labels.review.announceUndo(
           undoneLabel,
-          titleOf(pair.upperId),
-          titleOf(pair.lowerId),
+          nameOf(pair.upperId),
+          nameOf(pair.lowerId),
           questionNumber(shown),
           totalQuestions(shown),
         )
       : labels.review.announcePair(
-          titleOf(pair.upperId),
-          titleOf(pair.lowerId),
+          nameOf(pair.upperId),
+          nameOf(pair.lowerId),
           questionNumber(shown),
           totalQuestions(shown),
         )
@@ -169,6 +178,8 @@ export function ReviewMode({
               {(['upper', 'lower'] as const).map((position) => {
                 const chosen = held?.choice === position
                 const dimmed = held !== null && !chosen
+                const id = position === 'upper' ? pair.upperId : pair.lowerId
+                const badge = dueBadges.get(id)
                 return (
                 <button
                   key={position}
@@ -177,6 +188,7 @@ export function ReviewMode({
                   data-position={position}
                   data-chosen={chosen ? 'true' : undefined}
                   aria-disabled={held !== null ? 'true' : undefined}
+                  aria-label={badge ? nameOf(id) : undefined}
                   onClick={() => choose(position)}
                   className={`${cardClass} ${held === null ? 'cursor-pointer' : 'cursor-default'} ${dimmed ? 'opacity-50' : ''}`}
                 >
@@ -189,8 +201,9 @@ export function ReviewMode({
                     {labels.review[position]}
                   </span>
                   <span className="w-full break-words text-[30px] font-bold leading-tight">
-                    {titleOf(position === 'upper' ? pair.upperId : pair.lowerId)}
+                    {titleOf(id)}
                   </span>
+                  {badge && <DueBadgeLabel badge={badge} tone="card" />}
                 </button>
                 )
               })}
