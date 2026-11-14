@@ -21,7 +21,7 @@ MVP1 shipped. Current work: **v2 "ตัดสินใจทีละคู่"
 - `npm run build` — production build; its `tsc -b` step is what enforces type-level tests
 - `npm run lint` — lint
 - `bash scripts/verify-v2.sh [--pre-commit] [--slice N]` — v2 verification (report only); checks test ids of slices 0..N, default = latest slice
-- `bash scripts/verify-v2.selftest.sh` — proves verify-v2 catches planted defects (21 cases, at least one per check, ~13 min; far slower if the Mac sleeps with the lid closed — run long gates in the background)
+- `bash scripts/verify-v2.selftest.sh` — proves verify-v2 catches planted defects (25 cases, at least one per check, ~16 min; far slower if the Mac sleeps with the lid closed — run long gates in the background)
 - `bash scripts/verify-phase0.sh`, `bash scripts/verify-phase2.sh` — retired phase snapshots, see Scope guards
 
 ## Project Structure
@@ -29,8 +29,9 @@ MVP1 shipped. Current work: **v2 "ตัดสินใจทีละคู่"
 src/
   types/        # Task, Store
   hooks/        # useTasks — sole owner of task state, persistence, and undo history
-  lib/          # storage.ts (+ migration), date.ts, labels.ts (all UI text), review.ts (pure pairwise-review logic)
-  components/   # presentational UI: TaskInput, TaskList, TaskItem, DoneSection, EmptyState, ReviewMode,
+  lib/          # storage.ts (+ migration), date.ts, labels.ts (all UI text), review.ts (pure pairwise-review logic),
+                #   deadline.ts (pure: due date → label for a given day)
+  components/   # presentational UI: TaskInput, TaskList, TaskItem, DoneSection, EmptyState, ReviewMode, DueBadgeLabel,
                 #   plus handleDragEnd.ts, cardPointerSensor.ts, listCollisionDetection.ts, focusNeighbor.ts
   test/         # setup.ts, smoke test
   App.tsx       # the only caller of useTasks
@@ -73,14 +74,22 @@ If a task seems to need any of these, stop and ask instead of implementing.
 
 ## Coding Conventions
 - Functional components and hooks only.
-- Keep all task state logic in `useTasks`; only `App.tsx` calls it. Components receive values and handlers via props and must not import `useTasks`, `lib/storage`, `lib/date`, or touch `localStorage`.
+- Keep all task state logic in `useTasks`; only `App.tsx` calls it. Components receive values and handlers via props and must not import `useTasks`, `lib/storage`, `lib/date`, `lib/deadline`, call `new Date(`, or touch `localStorage` (`scripts/verify-v2.sh` V2-02, V2-18).
 - All UI text lives in `src/lib/labels.ts`; no Thai literals in components or `App.tsx`.
 - No new dependencies without asking first.
 - Accessibility: all buttons have labels; drag & drop must support keyboard; ↑ disabled on first item, ↓ disabled on last; review mode announces each new pair via `aria-live="polite"` and traps focus inside itself.
-- Drag & drop: a mouse drag can start anywhere on a card — `listeners` go on the `<li>`, and `CardPointerSensor` refuses to start from the card's buttons (↑ ↓ ✓ ✕ and any control added later). `attributes` and `setActivatorNodeRef` stay on the ⠿ handle, so keyboard dragging and screen-reader semantics live there. Sensors: `CardPointerSensor { distance: 5 }` + KeyboardSensor with `sortableKeyboardCoordinates`. Touch/mobile dragging is not supported. A row being edited inline must not start a drag.
+- Drag & drop: a mouse drag can start anywhere on a card — `listeners` go on the `<li>`, and `CardPointerSensor` refuses to start from the card's buttons (↑ ↓ ✓ ✕ and any control added later). `attributes` and `setActivatorNodeRef` stay on the ⠿ handle, so keyboard dragging and screen-reader semantics live there. Sensors: `CardPointerSensor { distance: 5 }` + KeyboardSensor with `sortableKeyboardCoordinates`. Touch/mobile dragging is not supported. A row being edited inline must not start a drag: an area marked `data-no-drag` (the due-date editor) refuses pointer drags everywhere inside it, empty space included.
 - Deadline never changes `order`. Any code path that sets or clears `dueDate` leaves every task's `order` untouched.
+- Due dates (slice 3):
+  - `useTasks.setDueDate(id, dueDate | null)` goes through `apply()` like every mutator (so it is undoable): todo tasks only; a string must pass `isCalendarDate` (exported from `lib/storage.ts`); an invalid date, the value the task already has, a done task or an unknown id is a no-op with no history entry; `null` removes the key (never `dueDate: undefined`). `uncompleteTask` keeps `dueDate` and drops only `completedAt`.
+  - `src/lib/deadline.ts` is pure (imports only `labels` and types): `dueBadge(dueDate, now)` → `{ kind: 'overdue' | 'today' | 'tomorrow' | 'later', text } | null`. Days are compared as calendar days built from year/month/day numbers — never `new Date('YYYY-MM-DD')`, which is UTC midnight and shifts the day in timezones behind UTC (test S3-14 runs under `America/Los_Angeles`). "later" is `Intl.DateTimeFormat('th-TH', { day, month: 'short' })`, plus the Buddhist year when the year differs from today's.
+  - `App` computes the badges on every render with `new Date()` and passes plain `{ kind, text }` data down (`dueBadges` map → `TaskList`/`TaskItem` and `ReviewMode`; `DoneSection` gets none: done rows show no badge and no due-date button). A page left open past midnight keeps yesterday's labels until the next action that re-renders App (AC-12.6) — an action that changes nothing does not count.
+  - `TaskItem`: the due-date button sits under the title (Tab order ⠿ → กำหนดส่ง → ↑ → ↓ → ✓ → ✕); its accessible name is "กำหนดส่ง: {title}" or "กำหนดส่ง: {title}, {badge}" and always contains the visible text. It toggles an inline editor on its own full-width line: `<input type="date">` + "ลบกำหนดส่ง" (only when a date exists) + "เสร็จ". Opening focuses the date field; Escape (an `onKeyDown` on the editor element, never on window/document), "เสร็จ" and "ลบกำหนดส่ง" close it and return focus to the due-date button.
+  - The date field is **uncontrolled**. While one part of a date (day/month/year) is being retyped the browser reports `''`; a controlled field would be reset to the old date at that moment. So: a half-typed value is ignored — `''`, and a year below 1000, which is what Chromium reports while the year is typed digit by digit (0002 → 0020 → 0202 → 2026; PO 2026-11-14, a rule of this field only — `setDueDate` and storage still accept such years) — removing a due date is the button's job only, React never writes to the field while the user types, and an effect on `task.dueDate` writes the current value into it only when the due date changes from elsewhere while the editor is open (undo/redo in the header).
+  - ⌘Z with focus in the date field belongs to the browser, like any text field. Each completed date is its own undo step; they are not merged.
+  - `ReviewMode`: the badge is shown under the title on both cards, and a card with a badge is named "{title}, {badge}" (`labels.review.cardName`) — in its `aria-label` and in `announcePair` / `announceUndo`. The round summary uses titles only.
 - Undo/redo: one history stack in `useTasks` (a pure `useReducer`: `{ present, past, future, dirty }`, one whole-list snapshot per action, each entry labelled from `labels.history`), max 50 steps, session-only (not persisted). An action that changes nothing (e.g. ↑ on the first row) creates no entry. Saving is driven by `dirty`, never by comparing array references — an undo back to the first snapshot must still write localStorage. Every undo/redo writes localStorage like a normal action. Undo of a delete restores the task to its original position. `moveTask(id, direction, reason)` takes `'swap'` from the review mode only to change the label.
-- Undo/redo shortcuts: the **one** `window.addEventListener('keydown', …)` in the app lives in `App.tsx`, bound once (ref to the latest handler), and handles only undo/redo — it must never touch Escape (`scripts/verify-v2.sh` V2-15). Match on `e.code` (`KeyZ`/`KeyY`), not `e.key`, so a Thai layout works; ⌘/Ctrl+Z = undo, ⇧⌘Z or Ctrl+Y = redo; do nothing on `e.repeat`, for newer-version data, while focus is in a text field (native undo), or while a task is lifted with the keyboard (`aria-pressed="true"` on the activator); `preventDefault` only when an undo/redo actually happened.
+- Undo/redo shortcuts: the **one** `window.addEventListener('keydown', …)` in the app lives in `App.tsx`, bound once (ref to the latest handler), and handles only undo/redo — it must never touch Escape (`scripts/verify-v2.sh` V2-15). Match on `e.code` (`KeyZ`/`KeyY`), not `e.key`, so a Thai layout works; ⌘/Ctrl+Z = undo, ⇧⌘Z or Ctrl+Y = redo; do nothing on `e.repeat`, for newer-version data, while focus is in a text field (native undo; the date field of the due-date editor counts), or while a task is lifted with the keyboard (`aria-pressed="true"` on the activator); `preventDefault` only when an undo/redo actually happened.
 - "เลิกทำ"/"ทำซ้ำ" (`UndoControls`) sit right of the title in the header on both the main page and the review mode; fixed accessible names, the action label in `title` + `aria-describedby`; hidden for newer-version data.
 - In the review mode, "เลิกทำ" / ⌘Z undoes the last *answer* (App keeps `reviewHistory`): a swapped answer is reverted with `undo({ redoable: false })` so it can never come back as a redo, the pair and counter return, focus goes to the upper card, the live region announces `labels.review.announceUndo`. Redo is disabled for the whole mode. Undo during the 800 ms hold ends the hold at once. Closing or "อีกรอบ" drops the answer history; swaps that stay applied are still undoable one by one on the main page.
 - Review mode: the ordering logic is pure functions in `src/lib/review.ts` (no React, storage, dates or `useTasks`); a "lower" answer is applied with the existing `moveTask(id, 'up')` — no new mutation. `App` renders `ReviewMode` instead of the page (TaskInput, lists and DoneSection are not rendered, not just hidden). Escape and the focus trap are `onKeyDown` on the mode's outermost element (header + dialog, `tabIndex={-1}`); never add a `document` listener for Escape, it would steal it from keyboard dragging (the only global listener is the undo/redo one in App.tsx). The trap's Tab order is fixed, not DOM order: upper card → lower card → ข้าม → ปิด → เลิกทำ (header, when enabled), so the cards stay first. Review state is in memory only. After an answer the answered pair stays on screen for `ANSWER_HOLD_MS` (800 ms, `src/lib/review.ts`) with the chosen card marked ✓, the other dimmed, and cards + skip `aria-disabled` (not `disabled`, so focus stays) — a repeated tap or held key cannot answer the next pair; close/Escape always work and cancel the hold timer.
@@ -100,6 +109,15 @@ If a task seems to need any of these, stop and ask instead of implementing.
   - Focus rings are ink, except controls on the black header bar, which use a neon ring (ink is invisible there).
   - Secondary buttons on the header bar ("เลิกทำ", "ทำซ้ำ"): neon text + 2px neon border on a transparent fill; disabled = muted text + muted border. This is the other place neon text is allowed, because the header is always black.
 - Both review cards always use the same color, so color never favors one answer.
+- Due-date badges (`DueBadgeLabel`, `text-sm font-semibold`) — same words in the list and on the review cards, colours follow the background:
+
+  | badge | in the list (surface) | on a review card (neon) |
+  |---|---|---|
+  | overdue "เลยกำหนด N วัน" | `bg-hot text-on-neon rounded-[6px]` | the same |
+  | today "วันนี้" | `text-ink` + a decorative 8px `bg-hot` dot (`aria-hidden`) | `text-on-neon` + the dot in `bg-on-neon` (PO 2026-11-13: hot on neon is only 2.95:1) |
+  | tomorrow "พรุ่งนี้" / later "24 ต.ค." | `text-muted` | `text-on-neon` |
+
+  Never `text-muted` or `text-ink` on neon. Every state has words; colour is never the only signal (AC-12.4).
 - No glow, no gradients, no shadows. Borders are 2px ink. Radius: rows 12px, review cards 20px, badges 6px, pills 999px.
 - All colors come from tokens in src/index.css. Components never contain hex values or Tailwind palette colors (gray-500 etc.).
 - Font: Chakra Petch 500/600/700 (Google Fonts link in index.html), fallback system-ui, sans-serif; line-height 1.55.
@@ -126,6 +144,8 @@ Tokens (declared in `src/index.css` with `@theme static` — `static` keeps toke
 - Tests run with `TZ=Asia/Bangkok` (`vite.config.ts` → `test.env`); for date logic use `vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime`.
 - No `.skip` / `.only` / `.todo`. Never weaken a test to make it pass — fix the code or ask.
 - jsdom has no layout: mouse dragging and keyboard reordering cannot be proven by tests. Never claim them as tested; list them for manual browser checks in `docs/MANUAL_QA.md`. jsdom also does not blur a focused button when it becomes `disabled`, so focus-related assertions cannot catch a `disabled` vs `aria-disabled` mix-up — assert the attribute instead.
+- Date field in tests: `fireEvent.change(input, { target: { value: 'YYYY-MM-DD' } })` stands for picking a date (and `''` for a half-typed one). jsdom cannot show the browser's segment editing — that is manual (MANUAL_QA M-33).
+- A test that needs another timezone uses `vi.stubEnv('TZ', …)` + `vi.unstubAllEnvs()` and first asserts `getTimezoneOffset()` so a switch that did not take effect cannot pass silently.
 - A test that starts a pointer drag must end it and then wait ~60ms: dnd-kit keeps a click-swallowing listener on `document` for 50ms, which can eat clicks in the next test.
 - Tests that need fake `setTimeout` (review-mode hold): use `vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })` — never fake `setImmediate` (React's scheduler uses it in Node and rendering stalls) — plus `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })`, and advance inside `act`. `src/test/setup.ts` stubs a `jest` global so @testing-library/react advances vitest's clock after each event; without it user-event hangs.
 - MVP1 tests (P1-xx, P2-xx) must keep passing through v2. If one legitimately no longer applies, stop and ask before changing it.

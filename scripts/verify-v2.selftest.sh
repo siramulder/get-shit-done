@@ -7,7 +7,7 @@ set -o pipefail
 cd "$(dirname "$0")/.." || { echo "FATAL: cannot cd to project root"; exit 2; }
 ROOT="$(pwd)"
 VERIFY="scripts/verify-v2.sh"
-TARGET_IDS="V2-01 V2-02 V2-03 V2-04 V2-05 V2-06 V2-07 V2-08 V2-09 V2-13 V2-14 V2-15 V2-16 V2-17"
+TARGET_IDS="V2-01 V2-02 V2-03 V2-04 V2-05 V2-06 V2-07 V2-08 V2-09 V2-13 V2-14 V2-15 V2-16 V2-17 V2-18"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/verify-v2-selftest.XXXXXX")" || { echo "FATAL: mktemp failed"; exit 2; }
 COPY="$WORK/project"
@@ -115,6 +115,11 @@ mutate_s() { replace_text src/components/EmptyState.tsx 'text-muted' "text-muted
 # Outside src entirely: Tailwind's source scan still picks the string up and the built CSS gains the utility (V2-17).
 mutate_t() { append_line docs/DEV_PLAN.md "selftest note: $DARK_VARIANT"; }
 mutate_u() { rename_id 'AC-18.1' 'AC-18.X'; }
+mutate_v() { append_line src/App.tsx "export const selftestByDue = (t: { dueDate?: string }[]) => [...t].sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))"; }
+mutate_w() { append_line src/components/TaskItem.tsx "export const selftestNow = () => new Date()"; }
+mutate_x() { rename_id 'AC-12.5' 'AC-12.X'; }
+mutate_y() { append_line src/components/EmptyState.tsx "import { dueBadge } from '../lib/deadline'
+export const selftestBadge = dueBadge"; }
 
 # run_case <letter> <expected-id> <description> <mutation> [<text the evidence lines (not the FAIL headline) must contain>]
 run_case() {
@@ -163,6 +168,10 @@ run_case r "V2-16" "ใส่ @media (prefers-color-scheme: light) ใน index.
 run_case s "V2-16" "ใส่ $DARK_VARIANT ใน component"                    mutate_s "$DARK_VARIANT"
 run_case t "V2-17" "ใส่ $DARK_VARIANT ใน docs/DEV_PLAN.md (นอก src)"       mutate_t "$DARK_VARIANT"
 run_case u "V2-07" "เปลี่ยนชื่อเทสต์ให้ AC-18.1 หายไป"                 mutate_u "AC-18.1"
+run_case v "V2-08" "เพิ่ม .sort ที่อ้าง dueDate ใน App.tsx"             mutate_v "src/App.tsx"
+run_case w "V2-18" "เรียก new Date( ใน TaskItem.tsx"                   mutate_w "TaskItem.tsx"
+run_case x "V2-07" "เปลี่ยนชื่อเทสต์ให้ AC-12.5 หายไป"                 mutate_x "AC-12.5"
+run_case y "V2-18" "import lib/deadline ใน component"                  mutate_y "lib/deadline"
 
 echo
 echo "== 3. Results =="

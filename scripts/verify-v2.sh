@@ -17,7 +17,9 @@ SLICE_0="AC-16.1 AC-16.2 AC-16.3 AC-16.4 AC-17.1 S0-01 S0-02 S0-03 S0-04 S0-05 S
 SLICE_1="AC-6.1 AC-6.2 AC-6.4 AC-7.1 AC-7.2 AC-7.3 AC-7.4 AC-7.5 AC-7.6 AC-8.1 AC-10.1 AC-10.2 AC-10.3 AC-F1.1 AC-F1.3 S1-01 S1-02 S1-03 S1-04 S1-05 S1-06 S1-07 S1-08 S1-09 S1-10 S1-11 S1-12 S1-13 S1-14 S1-15"
 # AC-18.x (US-18 new task on top, PO 2026-11-05) ride on slice 2: the change lives in useTasks and its undo history.
 SLICE_2="AC-9.1 AC-9.2 AC-15.1 AC-15.2 AC-15.3 AC-15.4 AC-15.5 AC-15.7 AC-15.8 AC-15.9 S2-01 S2-02 S2-03 S2-04 S2-05 S2-06 S2-07 S2-08 S2-09 S2-10 S2-11 S2-12 S2-13 S2-14 S2-15 S2-16 S2-17 S2-18 S2-19 S2-20 S2-21 S2-22 AC-18.1 AC-18.2 AC-18.3"
-LATEST_SLICE=2
+# AC-12.4 (badge contrast) is measured in the browser (MANUAL_QA M-34), so it has no test id here.
+SLICE_3="AC-6.3 AC-11.1 AC-11.2 AC-11.3 AC-11.4 AC-12.1 AC-12.2 AC-12.3 AC-12.5 AC-12.6 AC-13.1 AC-13.2 S3-01 S3-02 S3-03 S3-04 S3-05 S3-06 S3-07 S3-08 S3-09 S3-10 S3-11 S3-12 S3-13 S3-14 S3-15 S3-16 S3-17"
+LATEST_SLICE=3
 
 PRE_COMMIT=0
 SLICE=""
@@ -159,6 +161,7 @@ grep -v '^src/lib/storage\.ts$' "$NON_TEST" > "$NON_TEST_EXCEPT_STORAGE"
 PURE_LIB="$TMP_DIR/pure-lib"
 : > "$PURE_LIB"
 [ -f src/lib/review.ts ] && echo "src/lib/review.ts" >> "$PURE_LIB"
+[ -f src/lib/deadline.ts ] && echo "src/lib/deadline.ts" >> "$PURE_LIB"
 
 if git cat-file -e "${BASE_HASH}^{commit}" 2>/dev/null; then
   BASE=$BASE_HASH
@@ -194,12 +197,12 @@ V202_B="$(scan_lines "$NON_TEST_EXCEPT_STORAGE" '\bloadTasks\s*\(' '' 2>&1)"; V2
 # Pure logic (src/lib/review.ts) must not reach React, storage, dates or the hook.
 V202_C="$(scan_lines "$PURE_LIB" '[\x27"](react|react-dom|[^\x27"]*(hooks/useTasks|storage|date))(\.tsx?)?[\x27"]|\blocalStorage\b' '' 2>&1)"; V202_C_RC=$?
 if [ $V202_A_RC -eq 0 ] && [ $V202_B_RC -eq 0 ] && [ $V202_C_RC -eq 0 ]; then
-  pass "V2-02" "components do not import useTasks / lib/storage / lib/date or use localStorage; loadTasks( only in lib/storage.ts and tests; lib/review.ts imports no react / storage / date / useTasks"
+  pass "V2-02" "components do not import useTasks / lib/storage / lib/date or use localStorage; loadTasks( only in lib/storage.ts and tests; lib/review.ts and lib/deadline.ts import no react / storage / date / useTasks"
 elif [ $V202_A_RC -gt 1 ] || [ $V202_B_RC -gt 1 ] || [ $V202_C_RC -gt 1 ]; then
   fail "V2-02" "the check could not run"
   printf '%s\n%s\n%s\n' "$V202_A" "$V202_B" "$V202_C" | evidence
 else
-  fail "V2-02" "a component reaches past its props, loadTasks( is called outside lib/storage.ts, or lib/review.ts is not pure"
+  fail "V2-02" "a component reaches past its props, loadTasks( is called outside lib/storage.ts, or lib/review.ts / lib/deadline.ts is not pure"
   { [ $V202_A_RC -eq 1 ] && printf '%s\n' "$V202_A"; [ $V202_B_RC -eq 1 ] && printf '%s\n' "$V202_B"; [ $V202_C_RC -eq 1 ] && printf '%s\n' "$V202_C"; } | evidence
 fi
 
@@ -219,6 +222,10 @@ report_scan "V2-04" "no confirm( / window.confirm( calls in src (non-test)" \
 report_scan "V2-08" "no sort by dueDate, snackbar, or window.Notification in src (non-test)" \
   "out-of-scope code found (deadline is a label only; no sorting, no snackbar, no notifications)" \
   "$NON_TEST" '(sortBy|\.sort)\s*\([^\n]*dueDate|\bsnackbar\b|window\.Notification' 'i'
+
+report_scan "V2-18" "src/components (non-test) never calls new Date( and never imports lib/deadline — due-date labels are computed in App and passed down" \
+  "a component reads the clock or imports lib/deadline (App computes the labels and passes them as props)" \
+  "$COMPONENTS" '\bnew\s+Date\s*\(|[\x27"][^\x27"]*lib/deadline(\.tsx?)?[\x27"]' ''
 
 V209="$(node -e '
   const fs = require("fs");
@@ -440,6 +447,7 @@ echo "  M-16 localStorage ของ MVP1 จริง → งานครบ ล
 echo "  M-17–M-20 โหมดตรวจลำดับ: 375px, คีย์บอร์ดล้วน, เมาส์ 6 งาน + reload, 375px และ 1280×900 (M-21 VoiceOver ตัดออก)"
 echo "  M-02 ซ้ำ: Escape ของการลากด้วยคีย์บอร์ดยังยกเลิกได้หลังเปิด-ปิดโหมดตรวจลำดับ"
 echo "  M-23–M-27 undo/redo: คีย์ลัดทั้ง 4 แบบ, native undo ในช่องพิมพ์, ย้อนคำตอบในโหมด, ⌘Z ขณะยกงาน, เลิกทำระหว่าง hold (M-28 VoiceOver ตัดออก)"
+echo "  M-31–M-35 กำหนดส่ง: ปฏิทินของเบราว์เซอร์ (dark), 375px ทุกป้าย + ชื่อยาว, คีย์บอร์ดล้วน + แก้เฉพาะช่องวัน, contrast ทุกป้ายในลิสต์และบนการ์ด (AC-12.4), ลากการ์ดที่มีป้าย / ตัวแก้วันไม่เริ่มลาก"
 echo "  ⚠ V2-10 และ V2-11 ที่ผ่าน ไม่ได้แปลว่า M-10 (console สะอาด) ผ่าน — ต้องเปิด DevTools ดูเอง"
 echo "  ⚠ ทุกครั้งที่แก้ส่วนลากวาง ต้องตรวจ M-01, M-02, M-03, M-11 ใหม่ (ดู docs/MANUAL_QA.md)"
 

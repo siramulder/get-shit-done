@@ -1,6 +1,6 @@
 # DEV_PLAN — Task Priority App
 
-อัปเดต: 2026-11-13 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ, slice 2 (undo/redo), dark mode only (+ V2-17) และ US-18 งานใหม่อยู่บนสุด deploy แล้ว (2026-11-06, `f06da0f`) · **PO ตัด G2 (2026-11-07)** · กำลังทำ slice 3 (deadline, เริ่ม 2026-11-13)
+อัปเดต: 2026-11-14 · สถานะ: MVP1 เสร็จแล้ว · v2 slice 0, slice 1 (+ visual direction R), hold กันกดซ้ำ, slice 2 (undo/redo), dark mode only (+ V2-17) และ US-18 งานใหม่อยู่บนสุด deploy แล้ว (2026-11-06, `f06da0f`) · **PO ตัด G2 (2026-11-07)** · slice 3 (deadline) เสร็จในเครื่อง 2026-11-14 ยังไม่ push รอ PO ลอง · ถัดไป slice 4
 
 เอกสารที่เกี่ยวข้อง: `docs/PRD.md` (MVP1), `docs/PRD-v2.md` (v2), `docs/MANUAL_QA.md`, `CLAUDE.md`
 
@@ -13,7 +13,7 @@
 | MVP1 Phase 0–3 | เสร็จ เทสต์อัตโนมัติผ่านทั้งหมด |
 | MANUAL_QA ของ MVP1 | รอ PO กรอกคอลัมน์ "ผลที่ PO ตรวจ" · M-05 (โทรศัพท์) และ M-09 (VoiceOver) ตัดออกแล้ว |
 | Deploy | GitHub Pages ผ่าน `.github/workflows/deploy.yml` ทุกครั้งที่ push `main` → https://siramulder.github.io/get-shit-done/ · **v2 slice 0 deploy แล้ว 2026-10-20** ที่ `c68af21` (workflow run 39388328699 สำเร็จ, bundle `index-qZ_3JNzS.js` ตรงกับ build ของ HEAD, ตรวจข้อความ newerVersion บนเว็บจริงแล้ว) · **visual direction R + slice 1 deploy แล้ว 2026-10-25** ที่ `0ee347a` (workflow run 40198547633 สำเร็จ, bundle `index-B2xILS-S.js` ตรงกับ build ของ HEAD) · **hold กันกดซ้ำ deploy แล้ว 2026-10-27** ที่ `7772f56` (workflow run 40530989649 สำเร็จ, bundle `index-Daf1G1xb.js` ตรงกับ build ของ HEAD) · **v2 slice 2 deploy แล้ว 2026-10-29** ที่ `96dd70c` (workflow run 40863667881 สำเร็จ, bundle `index-Bck1mbg2.js` ตรงกับ build ของ HEAD, ตรวจปุ่มเลิกทำ/ทำซ้ำในแถบหัวและ ⌘Z บนเว็บจริงแล้ว) · MVP1 ตัวสุดท้าย = tag `v1.0-mvp1` (`19ccfad`) |
-| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) `e747fe7` style + `8ce8887` chore deploy แล้ว 2026-11-04 (workflow 41812662971) · `3486359` chore V2-17 ตรวจ CSS ที่ build · **US-18 งานใหม่อยู่บนสุด** (PO 2026-11-05) `8a8e1e8` feat + `1f16b9d` chore + `ec8cd68` docs — deploy แล้ว 2026-11-06 (workflow 42198544329) · ถัดไป slice 3 (deadline — ต้องแก้ `uncompleteTask` ทิ้ง `dueDate` พร้อม AC-12.5) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
+| v2 | slice 0, slice 1, hold กันกดซ้ำ และ slice 2 (undo/redo) เสร็จและ deploy แล้ว (ดูสรุปด้านล่าง) · **dark mode only** (PO 2026-11-02) `e747fe7` style + `8ce8887` chore deploy แล้ว 2026-11-04 (workflow 41812662971) · `3486359` chore V2-17 ตรวจ CSS ที่ build · **US-18 งานใหม่อยู่บนสุด** (PO 2026-11-05) `8a8e1e8` feat + `1f16b9d` chore + `ec8cd68` docs — deploy แล้ว 2026-11-06 (workflow 42198544329) · **slice 3 กำหนดส่ง** เสร็จในเครื่อง 2026-11-14 (ยังไม่ push รอ PO ลอง — `uncompleteTask` คง `dueDate` แล้ว) · ถัดไป slice 4 (แก้ชื่อ inline) · โหมดตรวจลำดับมี "เลิกทำ" ย้อนคำตอบทีละคู่แล้ว (US-9) |
 
 MVP1 ถือว่าปิดเมื่อ MANUAL_QA ครบ การเริ่ม v2 slice 0 ไม่ต้องรอข้อนั้น เพราะ slice 0 ไม่แตะ UI ที่ค้างตรวจ
 
@@ -56,7 +56,7 @@ jsdom ไม่มี layout จึงพิสูจน์ไม่ได้: �
 | 0 | US-16 migration + ปลด scope guard + US-17 contrast placeholder | AC-16.1 ถึง 16.4, AC-17.1, S0-01 ถึง S0-10 (+S0-05b) | เสร็จ `f335a93` (docs), `878b6be` (feat), `ae0df0d` (fix), `c68af21` (chore) · deploy 2026-10-20 |
 | 1 | US-6, 7, 8, 10 ตรวจลำดับ | AC-6.1, 6.2, 6.4, AC-7.1–7.6, AC-8.1, AC-10.1–10.3, AC-F1.1, F1.3, S1-01–S1-11 | เสร็จ `77b6bb5`, `d57b686` (R), `c901af9` (feat), `0ee347a` (chore) · deploy 2026-10-25 |
 | 2 | US-15 + US-9 undo/redo | AC-15.1, 15.2, 15.3, 15.4, 15.5, 15.7, 15.8, 15.9, AC-9.1, 9.2, S2-01–S2-22 | เสร็จ `e594d98` (feat), `96dd70c` (chore) · deploy แล้ว 2026-10-29 · ดูสรุปด้านล่าง |
-| 3 | US-11, 12, 13 deadline | AC-11.x, AC-12.x, AC-13.x และ AC-6.3 | กำลังทำ (แผนอนุมัติ 2026-11-13) |
+| 3 | US-11, 12, 13 deadline | AC-11.x, AC-12.x, AC-13.x และ AC-6.3 | เสร็จ 2026-11-14 `80fb8b6` (docs), `d8a417a` (feat), chore verify-v2 (ดูสรุปด้านล่าง) · **ยังไม่ push** รอ PO ลอง |
 | 4 | US-14 แก้ชื่อ inline | AC-14.x | ยังไม่เริ่ม |
 | 5 | QA + ทดสอบผู้ใช้ + migration จริง + เอกสาร | G1, G3, G4 (PO ตัด G2 2026-11-07) | ยังไม่เริ่ม |
 
@@ -198,8 +198,44 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - เครื่องปิดฝาระหว่างรัน verify (AppleClamshellState = Yes) รอบ --pre-commit จึงเกิน 7 นาที ผลไม่กระทบ
 - **Deploy (2026-11-06, PO สั่ง push):** push 6 commit `3486359`…`f06da0f` (`8ce8887..f06da0f`) → workflow 42198544329 สำเร็จ → เว็บจริงได้ `index-DtxNxeTR.js` / `index-DY9OqMBe.css` เท่ากับ build ในเครื่องทุกไบต์ · CSS บนเว็บไม่มี `prefers-color-scheme` แล้ว (rule ค้างจากรอบ dark-only หายไป) · browser pane บนเว็บจริง (localStorage ว่างก่อนเริ่ม): พิมพ์ A, B → ลิสต์ B, A, localStorage B0 A1, พื้นดำ, console ไม่มี error → ล้าง localStorage หลังตรวจ
 
+### v2 slice 3 — กำหนดส่ง (US-11, 12, 13) + ป้ายบนการ์ดตรวจลำดับ (AC-6.3) — สรุป (2026-11-13/14)
+
+| Commit | เนื้อหา |
+|---|---|
+| `80fb8b6` | docs: sync PRD, DEV_PLAN and README before slice 3 — G2 ตัด, Q1/Q4 ตอบแล้ว, ถ้อยคำ AC-12.1/12.2/12.3, README เป็น v2 |
+| `d8a417a` | feat(v2): deadline labels, date editor and review badges — `src/lib/deadline.ts` (pure), `useTasks.setDueDate` + แก้ `uncompleteTask`, `DueBadgeLabel`, ตัวแก้วันใน `TaskItem`, `[data-no-drag]` ใน `cardPointerSensor`, ป้ายบนการ์ดใน `ReviewMode`, App คำนวณป้าย, labels `due` / `history.setDue` / `history.clearDue` / `review.cardName`, MANUAL_QA M-31–M-35 |
+| chore: verify-v2 slice 3 checks and self-test | SLICE_3 (29 ID), V2-18, V2-02 ครอบ `lib/deadline.ts`, self-test v/w/x/y, CLAUDE.md, DEV_PLAN นี้ |
+
+- **AC ที่มีจริงใน PRD:** US-11 = AC-11.1–11.4 · US-12 = AC-12.1–12.6 · US-13 = AC-13.1, 13.2 · AC-6.3 · AC-12.4 (contrast) ตรวจด้วย M-34 ไม่มี ID ใน SLICE_3
+- **เทสต์:** 378 ข้อ (เดิม 315 + slice 3 63) เขียนก่อนและเห็นแดงก่อน · ID ใหม่: AC-6.3, AC-11.1–11.4, AC-12.1–12.3, AC-12.5, AC-12.6, AC-13.1, AC-13.2, S3-01–S3-17
+- **เทสต์เดิมที่แก้ (ID คง ไม่ลด assertion):** P2-10 (MVP1) ลำดับ Tab ที่คาดเพิ่มปุ่มวันส่งหลัง ⠿ เป็น 6 ปุ่ม (PO อนุมัติ 2026-11-13) · AC-15.2 เพิ่ม 3 กรณี (ตั้ง / เปลี่ยน / ลบวันส่ง) และให้งาน C มีวันส่งก่อนถ่าย snapshot ทุกกรณีจึงต้องคืน `dueDate` ด้วย · S0-01 คอมเมนต์ "no deadline UI" ไม่จริงแล้ว เพิ่ม assert ว่าเห็นป้าย "17 ต.ค." · AC-10.1 (ReviewMode) คำบรรยายระบุ "เมื่อไม่มีวันส่ง" · helper `renderItem` / `renderList` / `renderMode` ส่ง prop ใหม่ (`dueBadge`, `dueBadges`, `onSetDueDate`)
+- **ลองทำโค้ดพัง 5 แบบ:** (ก) `uncompleteTask` ทิ้ง `dueDate` → AC-12.5 ×2 · (ข) parse ด้วย `new Date('YYYY-MM-DD')` → แดงเฉพาะ **S3-14** (รันใต้ `America/Los_Angeles`); AC-12.x และ S3-01 ไม่แดงใน TZ Bangkok เพราะ UTC เที่ยงคืน = 07:00 เวลาไทยของวันเดียวกัน · (ค) `setDueDate` เปลี่ยน `order` → AC-13.1 (+ AC-11.2, AC-11.4, S3-09, S3-12) · (ง) ป้ายบนการ์ดใช้ `text-muted` → S3-11 ×2 · (จ) ผูก Escape ที่ `document` ใน TaskItem → เทสต์ผ่านทั้งหมด แต่ V2-15 FAIL ระบุ `TaskItem.tsx:81`
+- **browser pane (ดู MANUAL_QA):** M-32, M-33, M-34, M-35 ✅ และ M-01, M-02, M-03, M-11 ซ้ำ ✅ · M-31: ช่องวันที่เป็นสีเข้ม ✅ แต่หน้าต่างปฏิทินของเบราว์เซอร์ตรวจใน pane ไม่ได้ → รอ PO (Chrome และ Safari) · contrast ข้อความป้ายต่ำสุด 5.66:1 (on-neon บน hot)
+- **verify-v2:** `--pre-commit --slice 3` 20 ผ่าน 0 fail (V2-07 110 ID, V2-18 ใหม่) · self-test **25/25** (a–y) รวม v (.sort ที่อ้าง dueDate ใน App.tsx → V2-08), w (new Date( ใน TaskItem → V2-18), x (AC-12.5 หาย → V2-07), y (import lib/deadline ใน component → V2-18)
+
+**การตัดสินใจใน slice นี้ (PO):**
+- 2026-11-13 (ตอนวางแผน): ขยาย P2-10 ให้ลำดับ Tab = ⠿ → กำหนดส่ง → ↑ → ↓ → ✓ → ✕ · จุดของป้าย "วันนี้" บนการ์ด neon เป็นสี on-neon (hot บน neon ได้แค่ 2.95:1) ในลิสต์ยังเป็นจุด hot · เพิ่ม S3-14 สลับ TZ ตั้งแต่แรก
+- 2026-11-13 (ตอนอนุมัติ): ค่าว่างจากช่องวันที่ไม่ทำอะไร การลบทำผ่านปุ่ม "ลบกำหนดส่ง" เท่านั้น · ช่องต้องไม่ถูกเขียนทับระหว่างพิมพ์ และต้องตามค่าปัจจุบันเมื่อเปลี่ยนจากภายนอก (S3-15, S3-16) · pointerdown ทุกจุดในตัวแก้ไม่เริ่มลาก (`data-no-drag`) · ส่งภาพให้ดูก่อน commit
+- 2026-11-14: แถวสูง 78px คงไว้ (ปุ่มวันส่งสูง 40px) · ป้าย "เลยกำหนด N วัน" ขึ้น 2 บรรทัดที่ 375px คงไว้ · ช่องวันที่เมินปีต่ำกว่า 1000 ถือว่ายังพิมพ์ไม่เสร็จ (S3-17) — เป็นกฎของช่องเท่านั้น `setDueDate` และ storage ยังรับปี 0000–0999 ตามที่ตัดสินใน slice 0
+- ข้อสมมติที่ PO เห็นด้วย: aria-label ของช่อง "วันกำหนดส่ง: {title}" · ตัวแก้อยู่บรรทัดเต็มความกว้างใต้แถว เปิดได้หลายแถวพร้อมกัน · `announceUndo` ใส่ป้ายเหมือน `announcePair` สรุปท้ายรอบไม่ใส่ · การกระทำที่ไม่เปลี่ยน state ไม่ทำให้ป้ายคำนวณใหม่ (AC-12.6)
+
+**สิ่งที่เลือกเองระหว่างทำ (รายงาน PO แล้ว):**
+- ช่องวันที่เป็น **uncontrolled** (`defaultValue` + ref) + effect ที่เขียนค่าลงช่องเฉพาะเมื่อ `task.dueDate` เปลี่ยนจากภายนอก — ถ้าเป็น controlled React จะเขียนค่าเดิมกลับทันทีที่ช่องรายงาน `''` ทำให้แก้ทีละช่องย่อยไม่ได้
+- S3-14 สลับ TZ ด้วย `vi.stubEnv('TZ', …)` เพราะโปรเจกต์ไม่มี type ของ Node (`process`) และห้ามเพิ่ม dependency · เทสต์ยืนยัน `getTimezoneOffset()` ก่อน
+- ตัวจัดรูปวันที่ใช้ `timeZone: 'UTC'` คู่กับ `Date.UTC(y, m, d)` ข้อความเท่าเดิมแต่ไม่ขึ้นกับ timezone ของเครื่อง
+- self-test เพิ่มกรณี y (component import `lib/deadline` → V2-18) นอกจาก v, w, x เพราะ V2-18 มีสองเงื่อนไข
+- PRD-v2 ไม่มีตารางคำถามเปิด (Q1–Q4 อยู่ในไฟล์นี้) คำตอบ Q1/Q4 จึงบันทึกใต้หัวข้อ F2 ของ PRD
+
+**สิ่งที่เจอระหว่างทาง:**
+- Chromium รายงานค่าครบทุกครั้งที่พิมพ์เลขปี (0002 → 0020 → 0202 → 2026) → ก่อนแก้ได้ history 4 entry และป้าย "เลยกำหนด 666197 วัน" ชั่วขณะ เทสต์ jsdom จับไม่ได้ เจอใน M-33 → S3-17
+- พิมพ์วัน "27" ทับวันเดิมยังได้ 2 entry (02 แล้ว 27) เพราะทั้งคู่เป็นวันที่ครบ — ตามสเปค (ไม่รวม undo ของการพิมพ์ทีละช่อง)
+- `tsc -b` ไม่รู้จัก `process` ในไฟล์เทสต์ (vitest รันผ่านแต่ build แดง) → `vi.stubEnv`
+- ตัวแก้วันต้องอยู่บรรทัดของตัวเอง: ที่ 375px คอลัมน์ชื่อกว้าง 111px ใส่ช่องวันที่ (162px) ไม่ได้
+- browser pane: หน้าต่างปฏิทินของ `<input type="date">` ไม่ขึ้นในภาพและรับคีย์ไม่ได้ · ช่องวันที่รับเลขได้เฉพาะแบบกดคีย์ทีละปุ่ม · การลากด้วยคีย์บอร์ดต้องเว้นจังหวะระหว่างคีย์ ไม่งั้นคีย์ถูกกลืน (ครั้งแรกอ่านผลผิดว่าไม่ย้าย)
+
 ### การตัดสินใจของ v2
 
+- **วันส่งตั้งและลบในแถว** (slice 3): ปุ่มใต้ชื่องานเปิดตัวแก้ `<input type="date">` · ลบผ่านปุ่ม "ลบกำหนดส่ง" เท่านั้น · ช่องเมินค่าที่ยังพิมพ์ไม่เสร็จ (ว่าง หรือปีต่ำกว่า 1000) · ป้ายคำนวณใน App ทุก render แล้วส่งลงเป็น prop (`scripts/verify-v2.sh` V2-18 กัน component อ่านนาฬิกาเอง)
 - **PO ตัด G2 (2026-11-07):** เป้าหมาย "ใช้ตรวจลำดับอย่างน้อย 4 วันต่อสัปดาห์ ต่อเนื่อง 2 สัปดาห์" ไม่วัดแล้ว · เหลือ G1, G3, G4 (ขีดฆ่าใน PRD-v2 หมวด 3)
 - **ตัวเลือกวันที่ = `<input type="date">` ของเบราว์เซอร์** (Q1, PO 2026-11-07) ไม่ทำเอง ไม่เพิ่ม dependency · **รูปแบบวันที่สั้น = th-TH** ปีเป็น พ.ศ. เมื่อต้องมีปี (Q4)
 - **ไม่ตรวจด้วย VoiceOver** (PO 2026-10-31): M-09, M-21, M-28 ตัดออกจากรายการตรวจเอง โค้ด a11y (aria-live, ชื่อปุ่ม, focus trap) ยังอยู่และล็อกด้วยเทสต์ตามเดิม
@@ -231,7 +267,7 @@ PO พบว่าหลังตอบคู่หนึ่ง คู่ถั�
 - M-16 ผ่านบนเครื่องจริงของ PO แล้ว (2026-10-20) → push และ deploy slice 0 แล้ว
 - M-22 (hold) ผ่านใน browser pane · ไม่ตรวจบนโทรศัพท์ (PO 2026-10-31)
 - ปุ่ม ↑↓ disabled 1.73:1 (dark only ตั้งแต่ 2026-11-02) — WCAG ยกเว้น control ที่ disabled จดไว้ไม่แก้
-- slice 3: `uncompleteTask` ทิ้ง `dueDate` ต้องแก้พร้อม AC-12.5 · ป้าย deadline บนการ์ดตรวจลำดับ (AC-6.3)
+- slice 3 ยังไม่ push (รอ PO ลอง) · M-31 หน้าต่างปฏิทินของเบราว์เซอร์รอ PO ตรวจใน Chrome และ Safari (pane จับภาพ popup ไม่ได้)
 - slice 2 push ตามคำสั่ง PO 2026-10-29 (M-24 PO ลองบน localhost แล้ว ผ่าน)
 - dark mode only deploy แล้ว 2026-11-04 (workflow 41812662971) · V2-17 + docs และ US-18 deploy แล้ว 2026-11-06 (workflow 42198544329) — CSS บนเว็บไม่มี rule ของ variant `dark` ค้างแล้ว · M-30 ใน browser pane ดู MANUAL_QA
 - "เสร็จวันนี้" ไม่อัปเดตข้ามเที่ยงคืนขณะเปิดค้าง ยกไป v2.1
