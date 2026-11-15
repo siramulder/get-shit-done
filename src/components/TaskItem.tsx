@@ -24,8 +24,12 @@ type Props = {
 const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
 const iconButton = `inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-lg text-ink hover:bg-ink/10 ${focusRing} disabled:cursor-not-allowed disabled:text-disabled disabled:hover:bg-transparent`
 const controlButton = `${iconButton} cursor-pointer`
-// Text buttons of the due date: small type, but still a 40px-high target.
-const textButton = `inline-flex min-h-10 cursor-pointer items-center rounded-md text-sm font-semibold hover:bg-ink/10 ${focusRing}`
+// Text buttons of the due date: small type. The editor's buttons keep the app's 40px-high target; the due-date
+// button under the title is the one exception at 28px (PO 2026-11-15: desktop use, above the 24px minimum of
+// WCAG 2.5.8), which keeps a one-line row at about 66px.
+const textButtonBase = `inline-flex cursor-pointer items-center rounded-md text-sm font-semibold hover:bg-ink/10 ${focusRing}`
+const textButton = `${textButtonBase} min-h-10`
+const dueButton = `${textButtonBase} min-h-7`
 
 // What the browser reports while a date is still being typed, which is not a date the user chose:
 // '' while a part (day / month / year) is empty, and a year below 1000 while the year is typed digit by digit
@@ -109,7 +113,7 @@ export function TaskItem({
             dueBadge ? labels.due.buttonWithBadge(task.title, dueBadge.text) : labels.due.button(task.title)
           }
           onClick={() => setEditingDue((open) => !open)}
-          className={`${textButton} -ml-1 max-w-full gap-1 px-1 text-left ${dueBadge ? '' : 'text-muted'}`}
+          className={`${dueButton} -ml-1 max-w-full gap-1 px-1 text-left ${dueBadge ? '' : 'text-muted'}`}
         >
           {dueBadge ? (
             <DueBadgeLabel badge={dueBadge} tone="list" />
