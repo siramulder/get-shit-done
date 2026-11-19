@@ -162,6 +162,7 @@ PURE_LIB="$TMP_DIR/pure-lib"
 : > "$PURE_LIB"
 [ -f src/lib/review.ts ] && echo "src/lib/review.ts" >> "$PURE_LIB"
 [ -f src/lib/deadline.ts ] && echo "src/lib/deadline.ts" >> "$PURE_LIB"
+[ -f src/lib/calendarDate.ts ] && echo "src/lib/calendarDate.ts" >> "$PURE_LIB"
 
 if git cat-file -e "${BASE_HASH}^{commit}" 2>/dev/null; then
   BASE=$BASE_HASH
@@ -194,15 +195,15 @@ report_scan "V2-01" "no Thai characters in src/components or src/App.tsx (non-te
 
 V202_A="$(scan_lines "$COMPONENTS" '[\x27"][^\x27"]*(hooks/useTasks|lib/storage|lib/date)(\.tsx?)?[\x27"]|\blocalStorage\b' '' 2>&1)"; V202_A_RC=$?
 V202_B="$(scan_lines "$NON_TEST_EXCEPT_STORAGE" '\bloadTasks\s*\(' '' 2>&1)"; V202_B_RC=$?
-# Pure logic (src/lib/review.ts) must not reach React, storage, dates or the hook.
+# Pure logic (the files in PURE_LIB) must not reach React, storage, dates or the hook.
 V202_C="$(scan_lines "$PURE_LIB" '[\x27"](react|react-dom|[^\x27"]*(hooks/useTasks|storage|date))(\.tsx?)?[\x27"]|\blocalStorage\b' '' 2>&1)"; V202_C_RC=$?
 if [ $V202_A_RC -eq 0 ] && [ $V202_B_RC -eq 0 ] && [ $V202_C_RC -eq 0 ]; then
-  pass "V2-02" "components do not import useTasks / lib/storage / lib/date or use localStorage; loadTasks( only in lib/storage.ts and tests; lib/review.ts and lib/deadline.ts import no react / storage / date / useTasks"
+  pass "V2-02" "components do not import useTasks / lib/storage / lib/date or use localStorage; loadTasks( only in lib/storage.ts and tests; lib/review.ts, lib/deadline.ts and lib/calendarDate.ts import no react / storage / date / useTasks"
 elif [ $V202_A_RC -gt 1 ] || [ $V202_B_RC -gt 1 ] || [ $V202_C_RC -gt 1 ]; then
   fail "V2-02" "the check could not run"
   printf '%s\n%s\n%s\n' "$V202_A" "$V202_B" "$V202_C" | evidence
 else
-  fail "V2-02" "a component reaches past its props, loadTasks( is called outside lib/storage.ts, or lib/review.ts / lib/deadline.ts is not pure"
+  fail "V2-02" "a component reaches past its props, loadTasks( is called outside lib/storage.ts, or lib/review.ts / lib/deadline.ts / lib/calendarDate.ts is not pure"
   { [ $V202_A_RC -eq 1 ] && printf '%s\n' "$V202_A"; [ $V202_B_RC -eq 1 ] && printf '%s\n' "$V202_B"; [ $V202_C_RC -eq 1 ] && printf '%s\n' "$V202_C"; } | evidence
 fi
 
