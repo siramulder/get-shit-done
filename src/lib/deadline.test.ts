@@ -39,6 +39,11 @@ describe('dueBadge', () => {
     expect(dueBadge(undefined, at(17))).toBeNull()
   })
 
+  it.each([['abc'], ['2026-13-01'], ['2026-02-30'], ['2026-1-5']])('S3-02 a value that is not a calendar date (%j) has no badge and does not throw', (value) => {
+    expect(() => dueBadge(value, at(17, 10))).not.toThrow()
+    expect(dueBadge(value, at(17, 10))).toBeNull()
+  })
+
   it('S3-14 in a timezone behind UTC the due date is still read as a local calendar day (never parsed as UTC)', () => {
     vi.stubEnv('TZ', 'America/Los_Angeles') // Node re-reads TZ when it is assigned
     try {

@@ -1,3 +1,4 @@
+import { isCalendarDate } from './calendarDate'
 import { labels } from './labels'
 import type { DueBadge } from '../types/task'
 
@@ -14,10 +15,10 @@ const shortDateWithYear = new Intl.DateTimeFormat('th-TH', {
 // What a due date ("YYYY-MM-DD", a local calendar day) reads as on the day of `now`.
 // Days are compared as calendar days built from year / month / day numbers — the string is never handed to
 // `new Date(...)`, which would read it as UTC midnight and shift the day in timezones behind UTC.
+// Anything that is not a real calendar date (the same rule storage and setDueDate use) has no badge.
 export function dueBadge(dueDate: string | undefined, now: Date): DueBadge | null {
-  if (dueDate === undefined) return null
+  if (!isCalendarDate(dueDate)) return null
   const [year, month, day] = dueDate.split('-').map(Number)
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
 
   const dueDay = Date.UTC(year, month - 1, day) / DAY_MS
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / DAY_MS

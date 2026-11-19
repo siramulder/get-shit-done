@@ -1,7 +1,8 @@
 import { useEffect, useReducer, useState } from 'react'
 import { arrayMove } from '@dnd-kit/sortable'
 import type { Task } from '../types/task'
-import { isCalendarDate, loadStore, saveTasks } from '../lib/storage'
+import { isCalendarDate } from '../lib/calendarDate'
+import { loadStore, saveTasks } from '../lib/storage'
 import { isToday } from '../lib/date'
 import { labels } from '../lib/labels'
 
