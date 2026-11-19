@@ -817,6 +817,17 @@ describe('due date (slice 3)', () => {
     expect(result.current.todoTasks.map((t) => [t.title, t.order])).toEqual([['A', 0], ['B', 1], ['C', 2]])
   })
 
+  it('AC-13.1 removing the due date of B when A, B and C all have one leaves every order value untouched', () => {
+    freezeAt(local(17, 9))
+    const all = [{ ...a, dueDate: '2026-10-15' }, { ...b, dueDate: '2026-10-17' }, { ...c, dueDate: '2026-10-24' }]
+    seedV2(all)
+    const { result } = renderHook(() => useTasks())
+    act(() => result.current.setDueDate('b', null))
+    expect(result.current.todoTasks).toStrictEqual([all[0], b, all[2]]) // same positions, same order numbers, A and C untouched
+    expect(result.current.todoTasks.map((t) => [t.title, t.order])).toEqual([['A', 0], ['B', 1], ['C', 2]])
+    expect(stored()).toStrictEqual([all[0], b, all[2]])
+  })
+
   it('AC-12.5 a task with a due date keeps it through complete → uncomplete', () => {
     freezeAt(local(17, 9))
     seedV2([{ ...a, dueDate: '2026-10-24' }, b])
@@ -842,7 +853,7 @@ describe('due date (slice 3)', () => {
     expect(Object.keys(todoById(result, 'a') ?? {})).not.toContain('dueDate')
   })
 
-  it.each([['2026-02-30'], ['abc'], ['2026-2-3'], ['2026-10-17T00:00:00.000Z'], ['17/10/2026'], ['']])(
+  it.each([['2026-02-30'], ['abc'], ['2026-2-3'], ['2026-1-5'], ['2026-10-17T00:00:00.000Z'], ['17/10/2026'], ['']])(
     'S3-03 an invalid date (%j) is a no-op and creates no history entry',
     (value) => {
       seedV2([{ ...a, dueDate: '2026-10-24' }, b])
@@ -884,6 +895,20 @@ describe('due date (slice 3)', () => {
     act(() => result.current.setDueDate('e', null))
     expect(result.current.doneTodayTasks).toStrictEqual([d, doneWithDue])
     expect(result.current.canUndo).toBe(false)
+    expect(rawStore()).toBe(raw)
+  })
+
+  it('S3-05 an id that does not exist changes nothing', () => {
+    seedV2([{ ...a, dueDate: '2026-10-24' }, b])
+    const raw = rawStore()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const { result } = renderHook(() => useTasks())
+    const before = snapshot(result)
+    act(() => result.current.setDueDate('x', '2026-10-24'))
+    act(() => result.current.setDueDate('x', null))
+    expect(snapshot(result)).toStrictEqual(before)
+    expect(result.current.canUndo).toBe(false)
+    expect(setItem).not.toHaveBeenCalled()
     expect(rawStore()).toBe(raw)
   })
 

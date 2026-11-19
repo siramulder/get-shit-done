@@ -306,6 +306,77 @@ describe('due date in a row (slice 3)', () => {
     await tick(60) // dnd-kit swallows clicks for 50ms after a pointer drag
   })
 
+  it('S3-08 with the 5px drag distance the app uses: the title starts a drag once the pointer has moved more than 5px, the due-date button and the editor never do', async () => {
+    const user = userEvent.setup()
+    const onDragStart = vi.fn()
+    const task = withDue('2026-10-15')
+    const handlers = {
+      onMoveUp: vi.fn(), onMoveDown: vi.fn(), onComplete: vi.fn(), onDelete: vi.fn(), focusFallback: vi.fn(), onSetDueDate: vi.fn(),
+    }
+    // Same sensor and activation distance as TaskList (the shared TestDnd above drops the distance).
+    function AppDistanceDnd({ children }: { children: ReactNode }) {
+      const sensors = useSensors(useSensor(CardPointerSensor, { activationConstraint: { distance: 5 } }))
+      return (
+        <DndContext sensors={sensors} onDragStart={onDragStart}>
+          {children}
+        </DndContext>
+      )
+    }
+    render(
+      <AppDistanceDnd>
+        <SortableContext items={[task.id]}>
+          <ul>
+            <TaskItem task={task} dueBadge={overdue} {...MIDDLE} {...handlers} />
+          </ul>
+        </SortableContext>
+      </AppDistanceDnd>,
+    )
+    const press = (target: Element) => fireEvent.pointerDown(target, { ...PRIMARY_BUTTON, clientX: 100, clientY: 100 })
+    const moveTo = (x: number) => fireEvent.pointerMove(document, { ...PRIMARY_BUTTON, clientX: x, clientY: 100 })
+    const release = () => fireEvent.pointerUp(document, PRIMARY_BUTTON)
+
+    const dueButton = button(labels.due.buttonWithBadge('A', overdue.text))
+    await user.click(dueButton)
+    const editor = dateInput().parentElement as HTMLElement
+    for (const target of [dueButton, dateInput(), button(labels.due.done), editor]) {
+      press(target)
+      moveTo(115) // 15px
+      release()
+    }
+    expect(onDragStart).not.toHaveBeenCalled()
+    expect(dateInput()).toBeInTheDocument() // none of this closed the editor
+
+    // Control: the same gesture from the title is a drag, but only past 5px.
+    press(screen.getByText('A'))
+    moveTo(103)
+    expect(onDragStart).not.toHaveBeenCalled()
+    moveTo(115)
+    expect(onDragStart).toHaveBeenCalledTimes(1)
+    release()
+    await tick(60) // dnd-kit swallows clicks for 50ms after a pointer drag
+  })
+
+  it('S3-09 "เสร็จ" and pressing the due-date button a second time both close the editor with focus on the due-date button', async () => {
+    const user = userEvent.setup()
+    const { onSetDueDate } = renderItem(withDue('2026-10-24'), MIDDLE, undefined, later)
+    const dueButton = button(labels.due.buttonWithBadge('A', '24 ต.ค.'))
+    await user.click(dueButton)
+    expect(dateInput()).toHaveFocus()
+    await user.click(button(labels.due.done))
+    expect(queryDateInput()).not.toBeInTheDocument()
+    expect(dueButton).toHaveFocus()
+    expect(dueButton).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(dueButton)
+    expect(dateInput()).toHaveFocus()
+    expect(dueButton).toHaveAttribute('aria-expanded', 'true')
+    await user.click(dueButton) // the same button again
+    expect(queryDateInput()).not.toBeInTheDocument()
+    expect(dueButton).toHaveFocus()
+    expect(dueButton).toHaveAttribute('aria-expanded', 'false')
+    expect(onSetDueDate).not.toHaveBeenCalled()
+  })
+
   it('S3-09 Escape inside the editor closes it and returns focus to the due-date button, from the field or from a button', async () => {
     const user = userEvent.setup()
     const { onSetDueDate } = renderItem(withDue('2026-10-15'), MIDDLE, undefined, overdue)

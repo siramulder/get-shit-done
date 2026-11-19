@@ -1082,6 +1082,35 @@ describe('deadline (slice 3)', () => {
     expect(storedByTitle('A')?.dueDate).toBe('2026-10-24')
   })
 
+  it('AC-11.4 ⌘Z of a new due date is announced as "เลิกทำ: ตั้งกำหนดส่ง "A"", and ⇧⌘Z as "ทำซ้ำ: …"', async () => {
+    freeze(local(17, 9))
+    const { user } = setup()
+    await addTasks(user, 'A')
+    await user.click(dueButton('A'))
+    pickDate('A', '2026-10-24')
+    await user.click(button(labels.due.done))
+
+    fireEvent.keyDown(document.activeElement ?? document.body, keyZ({ metaKey: true }))
+    expect(dueButton('A')).toBeInTheDocument()
+    const undone = screen.getByText('เลิกทำ: ตั้งกำหนดส่ง "A"')
+    expect(undone).toHaveAttribute('aria-live', 'polite')
+    expect(labels.undo.undone(labels.history.setDue('A'))).toBe('เลิกทำ: ตั้งกำหนดส่ง "A"')
+
+    fireEvent.keyDown(document.activeElement ?? document.body, keyZ({ metaKey: true, shiftKey: true }))
+    expect(dueButton('A', '24 ต.ค.')).toBeInTheDocument()
+    expect(screen.getByText(labels.undo.redone(labels.history.setDue('A')))).toHaveAttribute('aria-live', 'polite')
+  })
+
+  it('S0-01 a stored due date of today reads "วันนี้" when the app opens; the raw "2026-10-17" is never shown', () => {
+    freeze(local(17, 10))
+    seedV2([todo('a', 'A', 0, '2026-10-17'), todo('b', 'B', 1)])
+    setup()
+    expect(dueButton('A', labels.due.today)).toBeInTheDocument()
+    expect(within(todoList()).getByText('วันนี้')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/2026-10-17|17\/10\/2026/)
+    expect(dueButton('B')).toBeInTheDocument() // a task without a due date gets no badge
+  })
+
   it('AC-12.5 a finished task shows no badge and no due-date button in "เสร็จวันนี้"; ↩ brings the badge back', async () => {
     freeze(local(17, 9))
     seedV2([todo('a', 'A', 0, '2026-10-15'), todo('b', 'B', 1)])
@@ -1117,6 +1146,22 @@ describe('deadline (slice 3)', () => {
     await user.click(button(labels.moveDown('A'))) // any action
     expect(dueButton('A', labels.due.today)).toBeInTheDocument()
     expect(dueButton('B', labels.due.overdue(1))).toBeInTheDocument()
+  })
+
+  it('AC-12.6 "พรุ่งนี้" at 23:50 is still shown at 00:10 with nothing done; adding one task turns it into "วันนี้"', async () => {
+    freeze(local(17, 23, 50))
+    seedV2([todo('a', 'A', 0, '2026-10-18')])
+    const { user } = setup()
+    expect(dueButton('A', labels.due.tomorrow)).toBeInTheDocument()
+
+    vi.setSystemTime(local(18, 0, 10))
+    expect(dueButton('A', labels.due.tomorrow)).toBeInTheDocument()
+    expect(within(todoList()).queryByText(labels.due.today)).not.toBeInTheDocument()
+
+    await addTasks(user, 'B')
+    expect(todoTitles()).toEqual(['B', 'A'])
+    expect(dueButton('A', labels.due.today)).toBeInTheDocument()
+    expect(within(todoList()).queryByText(labels.due.tomorrow)).not.toBeInTheDocument()
   })
 
   it('AC-13.2 there is no control to sort by due date, and due dates never reorder the list', () => {

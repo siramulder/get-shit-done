@@ -255,6 +255,27 @@ describe('due-date badges on the cards (slice 3)', () => {
     expect(card('upper').className).toBe(card('lower').className)
   })
 
+  it('AC-6.3 upper card overdue, lower card without a due date: badge, card names and the announcement', () => {
+    renderMode(undefined, noUndo, new Map([['C', overdue]]))
+    // the same words the list row shows for this badge
+    expect(within(card('upper')).getByText('เลยกำหนด 2 วัน')).toBeInTheDocument()
+    expect(card('upper')).toHaveAccessibleName('งาน C, เลยกำหนด 2 วัน')
+    // the lower card: title only, no badge of any kind
+    expect(card('lower')).toHaveAccessibleName('งาน D')
+    expect(card('lower')).not.toHaveAttribute('aria-label')
+    expect(card('lower').textContent).not.toMatch(/เลยกำหนด|วันนี้|พรุ่งนี้/)
+    expect(card('lower').querySelector('.bg-hot')).toBeNull()
+    expect(liveText()).toBe(labels.review.announcePair('งาน C, เลยกำหนด 2 วัน', 'งาน D', 1, 3))
+  })
+
+  it('S1-10 a badge on one card only does not change the card classes: both cards still carry exactly the same ones', () => {
+    renderMode(undefined, noUndo, new Map([['C', overdue]]))
+    expect(within(card('upper')).getByText(overdue.text)).toBeInTheDocument()
+    expect(card('upper').className).toBe(card('lower').className)
+    expect(card('upper')).toHaveClass('bg-neon', 'text-on-neon')
+    expect(card('lower')).toHaveClass('bg-neon', 'text-on-neon')
+  })
+
   it('AC-6.3 after an answer-undo the restored pair is announced with its badges too', () => {
     renderMode(undefined, { canUndo: false, undoLabel: null, undoCount: 1, undoneLabel: labels.review.answerUpper('งาน C') }, new Map([['C', overdue]]))
     expect(liveText()).toBe(

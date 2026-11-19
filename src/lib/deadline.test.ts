@@ -27,6 +27,16 @@ describe('dueBadge', () => {
     expect(dueBadge('2027-01-05', at(17))).toStrictEqual({ kind: 'later', text: '5 ม.ค. 2570' })
   })
 
+  it('AC-12.2 the day after 31 December reads "พรุ่งนี้" although it is in another year, not a date with a year', () => {
+    const newYearsEve = new Date(2026, 11, 31, 10, 0)
+    expect(dueBadge('2027-01-01', newYearsEve)).toStrictEqual({ kind: 'tomorrow', text: 'พรุ่งนี้' })
+    expect(dueBadge('2027-01-02', newYearsEve)).toStrictEqual({ kind: 'later', text: '2 ม.ค. 2570' }) // one day further: a date
+  })
+
+  it('AC-12.3 a leap day in another year reads "29 ก.พ. 2571"', () => {
+    expect(dueBadge('2028-02-29', at(17, 10))).toStrictEqual({ kind: 'later', text: '29 ก.พ. 2571' })
+  })
+
   it('S3-01 around midnight the label follows the local calendar day, not elapsed hours', () => {
     expect(dueBadge('2026-10-18', at(17, 23, 59))).toStrictEqual({ kind: 'tomorrow', text: labels.due.tomorrow })
     expect(dueBadge('2026-10-18', at(18, 0, 1))).toStrictEqual({ kind: 'today', text: labels.due.today })
@@ -42,6 +52,21 @@ describe('dueBadge', () => {
   it.each([['abc'], ['2026-13-01'], ['2026-02-30'], ['2026-1-5']])('S3-02 a value that is not a calendar date (%j) has no badge and does not throw', (value) => {
     expect(() => dueBadge(value, at(17, 10))).not.toThrow()
     expect(dueBadge(value, at(17, 10))).toBeNull()
+  })
+
+  it('S3-14 at 20:00 in Los Angeles (already the next day in UTC) today is "วันนี้" and the next local day is "พรุ่งนี้"', () => {
+    vi.stubEnv('TZ', 'America/Los_Angeles')
+    try {
+      const evening = new Date(2026, 9, 17, 20, 0)
+      expect(evening.getTimezoneOffset()).not.toBe(-420) // the switch took effect: no longer Bangkok
+      expect(evening.getTimezoneOffset()).toBeGreaterThan(0)
+      expect(evening.toISOString().slice(0, 10)).toBe('2026-10-18') // … and UTC is already on the next date
+      expect(dueBadge('2026-10-17', evening)).toStrictEqual({ kind: 'today', text: 'วันนี้' })
+      expect(dueBadge('2026-10-18', evening)).toStrictEqual({ kind: 'tomorrow', text: 'พรุ่งนี้' })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+    expect(new Date(2026, 9, 17, 20, 0).getTimezoneOffset()).toBe(-420) // back on Bangkok time for the next test
   })
 
   it('S3-14 in a timezone behind UTC the due date is still read as a local calendar day (never parsed as UTC)', () => {
