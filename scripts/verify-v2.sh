@@ -196,6 +196,11 @@ report_scan "V2-01" "no Thai characters in src/components or src/App.tsx (non-te
 V202_A="$(scan_lines "$COMPONENTS" '[\x27"][^\x27"]*(hooks/useTasks|lib/storage|lib/date)(\.tsx?)?[\x27"]|\blocalStorage\b' '' 2>&1)"; V202_A_RC=$?
 V202_B="$(scan_lines "$NON_TEST_EXCEPT_STORAGE" '\bloadTasks\s*\(' '' 2>&1)"; V202_B_RC=$?
 # Pure logic (the files in PURE_LIB) must not reach React, storage, dates or the hook.
+# Keep the `date` / `lib/date` alternatives of the two patterns exactly as they are: case-sensitive (flags '')
+# and immediately followed by the closing quote (or .ts / .tsx), so only an import of lib/date itself matches.
+# src/lib/calendarDate.ts has "Date" in its name, and deadline.ts, storage.ts and useTasks.ts import it:
+# './calendarDate' must never count as an import of lib/date. A case-insensitive or looser match would
+# fail V2-02 on those legitimate imports.
 V202_C="$(scan_lines "$PURE_LIB" '[\x27"](react|react-dom|[^\x27"]*(hooks/useTasks|storage|date))(\.tsx?)?[\x27"]|\blocalStorage\b' '' 2>&1)"; V202_C_RC=$?
 if [ $V202_A_RC -eq 0 ] && [ $V202_B_RC -eq 0 ] && [ $V202_C_RC -eq 0 ]; then
   pass "V2-02" "components do not import useTasks / lib/storage / lib/date or use localStorage; loadTasks( only in lib/storage.ts and tests; lib/review.ts, lib/deadline.ts and lib/calendarDate.ts import no react / storage / date / useTasks"
